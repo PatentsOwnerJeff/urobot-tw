@@ -1,0 +1,12 @@
+{"id": "q01", "question": "60 歲男性，8 mm 遠端輸尿管結石，症狀可控無感染，藥物排石治療（MET）首選藥物為？", "options": {"A": "α 受體阻斷劑", "B": "5α 還原酶抑制劑", "C": "抗毒蕈鹼藥物", "D": "利尿劑"}, "answer": "A", "evidence": ["stone-01", "eau-stone-20", "eau-stone-21"]}
+{"id": "q02", "question": "輸尿管結石合併發燒 38.9°C 與白血球上升，最優先的處置為？", "options": {"A": "立即體外震波碎石", "B": "緊急引流（雙J管或經皮腎造瘻）並給抗生素", "C": "口服止痛觀察", "D": "立即輸尿管鏡碎石"}, "answer": "B", "evidence": ["stone-02", "eau-stone-17", "eau-stone-18"]}
+{"id": "q03", "question": ">20 mm 腎結石的首選治療為？", "options": {"A": "體外震波碎石 SWL", "B": "觀察等待", "C": "經皮腎造瘻取石術 PCNL", "D": "溶石治療"}, "answer": "C", "evidence": ["stone-01", "eau-stone-33", "eau-stone-34"]}
+{"id": "q04", "question": "BPH 患者攝護腺體積 55 mL 且 PSA 偏高，欲降低急性尿滯留與手術風險，應合併使用？", "options": {"A": "抗生素", "B": "5α 還原酶抑制劑", "C": "β3 促效劑", "D": "利尿劑"}, "answer": "B", "evidence": ["bph-01", "eau-luts-16", "eau-luts-20"]}
+{"id": "q05", "question": "下列何者不是 BPH 的手術適應症？", "options": {"A": "反覆急性尿滯留", "B": "膀胱結石", "C": "初次輕度下泌尿道症狀（IPSS 5）", "D": "腎功能因阻塞惡化"}, "answer": "C", "evidence": ["bph-02", "eau-luts-28"]}
+{"id": "q06", "question": "低風險局限性攝護腺癌（PSA<10、ISUP 1、cT1-2a）的優先建議處置為？", "options": {"A": "立即根除性攝護腺切除", "B": "主動監測 active surveillance", "C": "全骨盆放療＋長期ADT", "D": "化學治療"}, "answer": "B", "evidence": ["pca-01", "eau-pca-30", "eau-pca-31"]}
+{"id": "q07", "question": "PSA 4–10 ng/mL 灰色地帶，決定是否切片前建議輔助工具為？", "options": {"A": "mpMRI（PI-RADS）", "B": "腹部X光 KUB", "C": "膀胱鏡", "D": "尿液常規"}, "answer": "A", "evidence": ["psa-01", "eau-pca-15", "eau-pca-16"]}
+{"id": "q08", "question": "非懷孕女性單純性急性膀胱炎，第一線口服抗生素可選？", "options": {"A": "Nitrofurantoin", "B": "第三代頭孢菌素靜脈注射", "C": "萬古黴素", "D": "抗黴菌藥"}, "answer": "A", "evidence": ["uti-01"]}
+{"id": "q09", "question": "55 歲吸菸男性出現無痛性肉眼血尿，上泌尿道影像檢查首選為？", "options": {"A": "腎臟超音波即可", "B": "CT urography", "C": "KUB X光", "D": "MRI 腦部"}, "answer": "B", "evidence": ["hematuria-01"]}
+{"id": "q10", "question": "膀胱過動症第一線治療為？", "options": {"A": "膀胱內肉毒桿菌注射", "B": "行為治療（膀胱訓練、骨盆底肌運動）", "C": "薦神經調節", "D": "手術"}, "answer": "B", "evidence": ["oab-01"]}
+{"id": "q11", "question": "5–10 mm 輸尿管結石，未自行排出且無感染，合理的主動治療選項為？", "options": {"A": "SWL 或輸尿管鏡 URS", "B": "開放手術", "C": "長期抗生素", "D": "腎臟切除"}, "answer": "A", "evidence": ["stone-01", "eau-stone-30", "eau-stone-31"]}
+{"id": "q12", "question": "攝護腺 >80 mL 的 BPH 手術，下列何者為建議術式？", "options": {"A": "尿道擴張", "B": "雷射剜除（HoLEP/ThuLEP）或開放式攝護腺切除", "C": "膀胱造瘻永久留置", "D": "雙J管留置"}, "answer": "B", "evidence": ["bph-02", "eau-luts-31", "eau-luts-32"]}

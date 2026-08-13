@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+index.pkl
+.DS_Store
+node_modules/
+
+# 指引衍生語料：著作權屬原機構，未取得散布授權前不隨 repo 公開
+corpus/eau_*.jsonl
+
+# 參考用的他人開源碼（依其原始授權自行取得）
+reference-UroBot/

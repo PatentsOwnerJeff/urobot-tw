@@ -1,0 +1,25 @@
+Apache License 2.0
+
+Copyright 2026 UROBOT TW Project
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+---
+
+注意：本授權僅涵蓋程式碼。corpus/ 內之指引語料著作權屬原發布機構
+（EAU、TUA、衛福部健保署等），未經各機構授權不得隨程式散布。
+公開發布本專案時，請將 eau_*.jsonl 等衍生語料排除在外（見 .gitignore），
+由使用者自行依 README 指示在本機建置語料。
+
+The UROBOT trademark is owned by the project owner and is not licensed
+under Apache 2.0. "UroBot" (DKFZ) is a separate academic project.

@@ -1,0 +1,6 @@
+jieba
+rank-bm25
+flask
+# 選用：接大模型時安裝其一
+# anthropic
+# openai
