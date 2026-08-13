@@ -17,14 +17,15 @@ PAGE = """<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
  .ans{white-space:pre-wrap;background:#f4f8fc;border-left:4px solid #2E74B5;padding:16px;border-radius:0 8px 8px 0}
  .warn{font-size:13px;color:#a55;margin-top:24px}
 </style></head><body>
-<h1>UROBOT TW</h1>
+<h1>UROBOT<sup>®</sup> TW</h1>
 <div class="sub">台灣泌尿科臨床決策輔助 AI — 回答附指引出處</div>
 <form method="post">
  <input name="q" placeholder="例：輸尿管結石 7mm 該怎麼處理？" value="{{q}}" autofocus>
  <button>詢問</button>
 </form>
 {% if a %}<div class="ans">{{a}}</div>{% endif %}
-<div class="warn">研發原型・示範語料。輸出僅供臨床參考，不構成醫療建議，最終決策由醫師負責。</div>
+<div class="warn">研發原型・示範語料。輸出僅供臨床參考，不構成醫療建議，最終決策由醫師負責。<br>
+UROBOT<sup>®</sup> 為英普瑞斯股份有限公司之註冊商標（中華民國註冊第 02509814 號）。</div>
 </body></html>"""
 
 @app.route("/", methods=["GET", "POST"])
