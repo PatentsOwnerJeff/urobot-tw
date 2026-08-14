@@ -85,55 +85,89 @@ def test_ods_parsing():
 
 # ---------- 泌尿科篩選 ----------
 
-def test_drugs_filtered_by_atc_code():
-    docs = B.to_docs(B.parse(_csv_bytes(DRUG_ROWS)), "drugs", "測試")
-    ids = [d["id"] for d in docs]
-    assert ids == ["nhi-drug-AC12345", "nhi-drug-CD55555"], \
-        "應收錄 G04（泌尿科用藥）與 L02（攝護腺癌 ADT），排除 A10（糖尿病）"
-
-
+# 以下每一筆都是實際跑真實健保資料時撈到的誤判，逐一釘住避免回歸。
 FALSE_POSITIVE_PROCS = [
-    # 「腎上腺」含「腎」、adrenal 含 renal → 曾被誤判為泌尿科（屬內分泌外科）
+    # 「腎上腺」含「腎」、adrenal 含 renal → 屬內分泌外科
     ["81001B", "40000", "1140501", "", "Adrenalectomy", "腎上腺切除術", ""],
     # 「...Testing」曾被 "testi" 子字串誤判為睪丸相關
     ["12345C", "300", "1140501", "", "Glucose Tolerance Testing", "葡萄糖耐量試驗", ""],
     # 透析屬腎臟科，且項目數量龐大會稀釋語料
     ["58001C", "3800", "1140501", "", "Hemodialysis", "血液透析", ""],
+    # gall bladder 含 bladder → 實測撈進腹部超音波
+    ["19009C", "800", "1140501", "",
+     "Abdominal echography (liver, gall bladder, pancreas, spleen)", "腹部超音波", ""],
+    # 前列腺「素」是 prostaglandin，與前列腺無關
+    ["99999C", "100", "1140501", "", "Dinoprostone administration", "前列腺素給藥", ""],
+    # TURPENTINE 松節油 曾被 "TURP" 子字串命中
+    ["88888C", "50", "1140501", "", "Turpentine liniment application", "松節油塗敷", ""],
+    # Serenal（鎮靜劑商品名）含 renal
+    ["77777C", "60", "1140501", "", "Serenal capsule administration", "心益膠囊給藥", ""],
+    # taurine 含 urine
+    ["66666C", "70", "1140501", "", "Taurine level measurement", "牛磺酸測定", ""],
 ]
 
 
-@pytest.mark.parametrize("row", FALSE_POSITIVE_PROCS,
-                         ids=["腎上腺切除術", "葡萄糖耐量試驗", "血液透析"])
+@pytest.mark.parametrize("row", FALSE_POSITIVE_PROCS, ids=[r[5] for r in FALSE_POSITIVE_PROCS])
 def test_known_false_positives_are_excluded(row):
     docs = B.to_docs(B.parse(_ods_bytes(PROC_HEADER, [row])), "procedures", "測試")
     assert docs == [], f"不應被判定為泌尿科：{row[5]}（{row[4]}）"
 
 
-def test_adrenaline_drug_excluded_but_urologicals_kept():
-    rows = [
-        {"藥品代號": "EP00001", "藥品英文名稱": "Adrenaline Inj", "藥品中文名稱": "腎上腺素注射液",
-         "成分": "ADRENALINE", "支付價": "20", "有效起日": "1130101", "有效迄日": "",
-         "劑型": "注射劑", "ATC代碼": "C01CA24", "給付規定章節": ""},
-        {"藥品代號": "TA00001", "藥品英文名稱": "Tamsulosin", "藥品中文名稱": "坦索羅辛",
-         "成分": "TAMSULOSIN", "支付價": "12", "有效起日": "1130101", "有效迄日": "",
-         "劑型": "膠囊", "ATC代碼": "G04CA02", "給付規定章節": "第9節"},
-    ]
-    ids = [d["id"] for d in B.to_docs(B.parse(_csv_bytes(rows)), "drugs", "測試")]
-    assert ids == ["nhi-drug-TA00001"], "腎上腺素（急救用藥）不該被收進泌尿科語料"
+TRUE_POSITIVE_PROCS = [
+    ["79001B", "28500", "1140501", "", "Transurethral resection of prostate", "經尿道攝護腺切除術", ""],
+    ["79411B", "31000", "1140501", "", "Extracorporeal shock wave lithotripsy", "體外震波碎石術", ""],
+    ["79028B", "9000", "1140501", "", "TURBT", "經尿道膀胱腫瘤切除術", ""],
+    ["00000C", "500", "1140501", "", "Renal ultrasonography", "", ""],
+]
 
 
-def test_breast_cancer_hormone_therapy_excluded():
-    """L02 整群含乳癌荷爾蒙治療，故只收 L02AE / L02BB。"""
-    rows = [
-        {"藥品代號": "TM00001", "藥品英文名稱": "Tamoxifen", "藥品中文名稱": "泰莫西芬",
-         "成分": "TAMOXIFEN", "支付價": "5", "有效起日": "1130101", "有效迄日": "",
-         "劑型": "錠劑", "ATC代碼": "L02BA01", "給付規定章節": ""},
-        {"藥品代號": "BI00001", "藥品英文名稱": "Bicalutamide", "藥品中文名稱": "比卡魯胺",
-         "成分": "BICALUTAMIDE", "支付價": "60", "有效起日": "1130101", "有效迄日": "",
-         "劑型": "錠劑", "ATC代碼": "L02BB03", "給付規定章節": "第9節"},
-    ]
-    ids = [d["id"] for d in B.to_docs(B.parse(_csv_bytes(rows)), "drugs", "測試")]
-    assert ids == ["nhi-drug-BI00001"], "L02BA（乳癌用 tamoxifen）不該被收進泌尿科語料"
+@pytest.mark.parametrize("row", TRUE_POSITIVE_PROCS, ids=[r[5] or r[4] for r in TRUE_POSITIVE_PROCS])
+def test_true_positives_still_kept(row):
+    """修掉誤判之後，真正該收的項目不能跟著被排除。"""
+    docs = B.to_docs(B.parse(_ods_bytes(PROC_HEADER, [row])), "procedures", "測試")
+    assert len(docs) == 1, f"應被判定為泌尿科：{row[5] or row[4]}"
+
+
+# ---------- 藥品：只認 ATC，不比對品名 ----------
+
+def _drug(code, zh, en, ingredient, atc):
+    return {"藥品代號": code, "藥品英文名稱": en, "藥品中文名稱": zh, "成分": ingredient,
+            "支付價": "10", "有效起日": "1130101", "有效迄日": "", "劑型": "錠劑",
+            "ATC代碼": atc, "給付規定章節": ""}
+
+
+DRUG_CASES = [
+    # (應否收錄, 藥品)
+    (True, _drug("D1", "坦索羅辛", "Tamsulosin", "TAMSULOSIN", "G04CA02")),        # 泌尿科用藥
+    (True, _drug("D2", "柳菩林", "Leuprorelin", "LEUPRORELIN", "L02AE02")),        # 攝護腺癌 ADT
+    (True, _drug("D3", "比卡魯胺", "Bicalutamide", "BICALUTAMIDE", "L02BB03")),     # 抗雄性素
+    (True, _drug("D4", "康腎膠囊", "Pipemidic", "PIPEMIDIC ACID", "J01MB04")),      # 尿路抗菌劑
+    (True, _drug("D5", "睪固酮", "Testosterone", "TESTOSTERONE", "G03BA03")),       # 男性性腺功能低下
+    (False, _drug("D6", "泰莫西芬", "Tamoxifen", "TAMOXIFEN", "L02BA01")),          # 乳癌，非泌尿
+    (False, _drug("D7", "腎上腺素注射液", "Adrenaline", "ADRENALINE", "C01CA24")),   # 急救用藥
+    # 以下三筆品名/成分含泌尿相關字串，但 ATC 不是泌尿科 → 必須排除
+    (False, _drug("D8", "心益膠囊", "Serenal Capsules", "OXAZOLAM", "N05BA91")),     # Se-renal
+    (False, _drug("D9", "腎寧錠", "Nephrolan", "CHONDROITIN SULFATE", "V06DX")),     # 商品名含 Nephro
+    (False, _drug("D10", "可氣爽注射液", "Kisan", "TURPENTINE DER.", "R03DA51")),     # TURP-entine
+    (False, _drug("D11", "保樂胎蒙戊錠(前列腺素)", "Dinoprostone", "DINOPROSTONE", "G02AD02")),
+]
+
+
+@pytest.mark.parametrize("expected,row", DRUG_CASES,
+                         ids=[f"{'收' if e else '排'}-{r['藥品中文名稱']}" for e, r in DRUG_CASES])
+def test_drug_selection_is_atc_only(expected, row):
+    docs = B.to_docs(B.parse(_csv_bytes([row])), "drugs", "測試")
+    assert bool(docs) is expected, (
+        f"{row['藥品中文名稱']}（ATC={row['ATC代碼']}）"
+        f"{'應' if expected else '不應'}被收錄"
+    )
+
+
+def test_drugs_filtered_by_atc_code():
+    docs = B.to_docs(B.parse(_csv_bytes(DRUG_ROWS)), "drugs", "測試")
+    ids = [d["id"] for d in docs]
+    assert ids == ["nhi-drug-AC12345", "nhi-drug-CD55555"], \
+        "應收錄 G04（泌尿科用藥）與 L02AE（攝護腺癌 ADT），排除 A10（糖尿病）"
 
 
 def test_procedures_filtered_by_keyword():

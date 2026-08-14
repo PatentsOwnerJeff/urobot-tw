@@ -85,24 +85,40 @@ UROLOGY_KEYWORDS_ZH = [
     "碎石", "尿失禁", "排尿", "導尿", "血尿", "尿液", "尿動力",
     "腎盂", "腎臟", "膀胱鏡", "腎鏡", "輸尿管鏡",
 ]
-UROLOGY_KEYWORDS_EN = [
+# 英文比對一律加字界（\b），否則子字串會大量誤判。實測踩過的坑：
+#   renal   → Se|renal（心益膠囊，鎮靜劑）        118 筆
+#   urine   → ta|urine、p|urine                   81 筆
+#   nephr   → Nephr|o- 開頭的商品名                16 筆
+# 「字首比對」：允許 nephrectomy / nephrolithiasis 這類衍生字
+UROLOGY_EN_PREFIXES = [
     "urolog", "renal", "nephr", "ureter", "bladder", "vesic", "urethr",
-    "prostat", "testis", "testicular", "scrot", "penil", "penis",
-    "spermat", "vas deferens",
-    "lithotrip", "cystoscop", "urodynamic", "urinary", "urine", "TURP", "TURBT",
+    "prostat", "testis", "testicular", "scrot", "penil",
+    "spermat", "lithotrip", "cystoscop", "urodynamic", "urinary",
+]
+# 「完整單字比對」：縮寫與短字，字首比對會誤判（TURP → TURPENTINE 松節油）
+UROLOGY_EN_WORDS = ["TURP", "TURBT", "penis", "urine", "vas deferens"]
+
+# 排除詞（子字串比對，優先於收錄判斷）：
+#   腎上腺 / adrenal      → 屬內分泌外科；adrenal 含 renal，且「腎上腺」含「腎」
+#   前列腺素 / prostaglandin → 與「前列腺」是完全不同的東西（dinoprostone 用於引產）
+#   gall bladder          → 膽囊；含 bladder，會撈進腹部超音波等項目
+EXCLUDE_KEYWORDS = [
+    "腎上腺", "adrenal", "epinephrin",
+    "前列腺素", "prostaglandin", "dinoprost", "alprostadil",
+    "gall bladder", "gallbladder", "膽囊",
 ]
 
-# 排除詞：避免子字串誤判。
-#   「腎上腺 / adrenal」屬內分泌外科，但會被「腎」「renal」命中（adrenal 含 renal）
-#   「腎上腺素 / adrenaline」是急救用藥，會從藥品「成分」欄被撈進來
-EXCLUDE_KEYWORDS = ["腎上腺", "adrenal", "epinephrin"]
-
-# ATC 代碼：
-#   G04   = Urologicals（泌尿科用藥：α阻斷劑、5ARI、抗蕈毒鹼、PDE5i…）
-#   L02AE = GnRH 促效劑（攝護腺癌 ADT）
-#   L02BB = 抗雄性素（攝護腺癌）
-# 刻意不用整個 L02：L02 還包含乳癌荷爾蒙治療（tamoxifen、letrozole 等）。
-UROLOGY_ATC_PREFIXES = ("G04", "L02AE", "L02BB")
+# 藥品一律只看 ATC 代碼，不比對品名。
+# 理由：藥品中文名是行銷名稱（「康腎膠囊」「心益膠囊」），與適應症無必然關係，
+#       實測用品名比對會撈進 R03 呼吸道用藥 85 筆、R05 止咳藥 44 筆。
+#   G04   Urologicals（α阻斷劑、5ARI、抗蕈毒鹼、PDE5i…）
+#   G03B  Androgens（睪固酮補充，男性性腺功能低下）
+#   L02AE GnRH 促效劑 ／ L02BB 抗雄性素（攝護腺癌 ADT）
+#         刻意不用整個 L02：L02 尚包含乳癌荷爾蒙治療（tamoxifen、letrozole）
+#   J01MB 其他喹諾酮類（pipemidic acid 等尿路抗菌劑）
+#   J01XE 呋喃類（nitrofurantoin，單純性泌尿道感染第一線）
+# 這是精準優先的取捨，會漏掉一些跨科用藥；要放寬請自行增列。
+UROLOGY_ATC_PREFIXES = ("G04", "G03B", "L02AE", "L02BB", "J01MB", "J01XE")
 
 
 # ---------------- 下載與解析 ----------------
@@ -179,23 +195,30 @@ def pick(row, aliases):
     return ""
 
 
+def _en_matches(text):
+    """英文比對一律加字界，避免 Serenal→renal、TURPENTINE→TURP 這類子字串誤判。"""
+    low = text.lower()
+    return (any(re.search(r"\b" + re.escape(k), low) for k in UROLOGY_EN_PREFIXES)
+            or any(re.search(r"\b" + re.escape(k.lower()) + r"\b", low)
+                   for k in UROLOGY_EN_WORDS))
+
+
 def is_urology(row, kind):
     fields = FIELDS[kind]
-    zh = pick(row, fields["name_zh"])
-    en = pick(row, fields["name_en"]).lower()
 
+    # 藥品：只認 ATC 代碼。品名是行銷名稱，比對它只會製造誤判。
     if kind == "drugs":
-        atc = pick(row, fields["atc"]).upper()
-        if atc.startswith(UROLOGY_ATC_PREFIXES):
-            return True          # ATC 命中最可靠，直接收，不受排除詞影響
-        en += " " + pick(row, fields["ingredient"]).lower()
+        return pick(row, fields["atc"]).upper().startswith(UROLOGY_ATC_PREFIXES)
 
-    blob = f"{zh} {en}"
-    if any(k.lower() in blob.lower() for k in EXCLUDE_KEYWORDS):
+    # 診療項目：比對中英文名稱（英文常為空，中文為主）
+    zh = pick(row, fields["name_zh"])
+    en = pick(row, fields["name_en"])
+    blob = f"{zh} {en}".lower()
+
+    if any(k.lower() in blob for k in EXCLUDE_KEYWORDS):
         return False
 
-    return (any(k in zh for k in UROLOGY_KEYWORDS_ZH)
-            or any(k.lower() in en for k in UROLOGY_KEYWORDS_EN))
+    return any(k in zh for k in UROLOGY_KEYWORDS_ZH) or _en_matches(en)
 
 
 def to_docs(rows, kind, source_note):
@@ -279,11 +302,23 @@ def inspect(rows, kind):
         print(json.dumps(row, ensure_ascii=False, indent=2)[:900])
         print("-" * 40)
 
-    missing = {k: v for k, v in FIELDS[kind].items() if not pick(rows[0], v)}
+    # 判斷「欄位存在」而非「第一筆有值」—— 例如支付標準的第一筆沒有英文名稱，
+    # 但欄位本身是存在的。
+    columns = set(rows[0])
+    missing, empty = {}, {}
+    for key, aliases in FIELDS[kind].items():
+        matched = [a for a in aliases if a in columns]
+        if not matched:
+            missing[key] = aliases
+        elif not any(pick(r, aliases) for r in rows[:200]):
+            empty[key] = matched
+
     if missing:
-        print(f"\n⚠️ 下列欄位對應不到，請開 issue 附上上面的欄位清單：\n   {missing}")
-    else:
-        print("\n✅ 所有預期欄位都對應成功。")
+        print(f"\n❌ 下列欄位對應不到，請開 issue 附上上面的欄位清單：\n   {missing}")
+    if empty:
+        print(f"\n⚠️ 下列欄位存在但前 200 筆都是空的，請確認是否正常：\n   {empty}")
+    if not missing and not empty:
+        print("\n✅ 所有預期欄位都對應成功且有資料。")
 
 
 def main():
