@@ -1,0 +1,49 @@
+name: 📚 提議新增語料
+description: 建議收錄新的指引、給付規定或臨床內容
+title: "[corpus] "
+labels: ["corpus"]
+body:
+  - type: input
+    id: topic
+    attributes:
+      label: 主題
+      placeholder: 例：神經性膀胱 / 泌尿道感染抗生素選擇 / 達文西手術健保給付條件
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: 來源（含版本或生效日期）
+      placeholder: 例：健保署醫療服務給付項目及支付標準 114/05/01 生效版
+    validations:
+      required: true
+
+  - type: dropdown
+    id: license
+    attributes:
+      label: 授權狀態
+      description: 這關係到內容能不能直接放進公開 repo，請務必確認
+      options:
+        - 政府公開資料（健保署、衛福部等，可直接收錄）
+        - 貢獻者自行撰寫（可直接收錄）
+        - 學會／出版社指引原文（不可直接收錄，需改走 build_corpus.py）
+        - 不確定
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 為什麼重要
+      description: 這塊內容能解決什麼臨床問題？目前系統回答不好的例子？
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 確認
+      options:
+        - label: 我已閱讀 CONTRIBUTING.md 的著作權章節
+          required: true

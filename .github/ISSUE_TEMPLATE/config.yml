@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 一般討論與提問
+    url: https://github.com/PatentsOwnerJeff/urobot-tw/discussions
+    about: 使用問題、架構討論、想法交流請走 Discussions
+  - name: 🔒 資安或病人資料外洩通報
+    url: https://github.com/PatentsOwnerJeff/urobot-tw/security/policy
+    about: 請勿公開張貼，依 SECURITY.md 的方式私下通報

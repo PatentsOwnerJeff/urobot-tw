@@ -4,9 +4,18 @@ __pycache__/
 index.pkl
 .DS_Store
 node_modules/
+.pytest_cache/
+.idea/
+.vscode/
 
 # 指引衍生語料：著作權屬原機構，未取得散布授權前不隨 repo 公開
+# 使用者請自行執行 build_corpus.py 建置
 corpus/eau_*.jsonl
+corpus/aua_*.jsonl
+corpus/tua_*.jsonl
+
+# 註：corpus/nhi_*.jsonl 為政府開放資料（政府資料開放授權條款第1版），
+#     可以且應該進版控，故不列入排除。
 
 # 參考用的他人開源碼（依其原始授權自行取得）
 reference-UroBot/

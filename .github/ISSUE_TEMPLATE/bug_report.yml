@@ -1,0 +1,53 @@
+name: 🐛 程式錯誤
+description: 程式跑不起來、報錯、行為不如預期
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: 若是**醫療內容**有誤，請改用「⚕️ 臨床內容有誤」模板。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 發生什麼事
+      description: 預期行為 vs 實際行為
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 重現步驟
+      placeholder: |
+        1. python ingest.py
+        2. python app.py
+        3. 輸入「……」
+        4. 出現錯誤
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 錯誤訊息／traceback
+      render: shell
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 使用哪一種模型模式
+      options:
+        - 純檢索模式（未設任何 key）
+        - Claude API
+        - 本地 Ollama
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: 環境
+      placeholder: "macOS 15 / Python 3.12 / 本地安裝"
+    validations:
+      required: true

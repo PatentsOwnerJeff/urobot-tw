@@ -1,0 +1,67 @@
+name: ⚕️ 臨床內容有誤
+description: 回報語料或系統輸出的醫療內容錯誤（優先處理）
+title: "[correctness] "
+labels: ["correctness", "priority"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝你回報。臨床正確性問題是本專案的最高優先級。
+
+        ⚠️ **請勿在此張貼任何可辨識的病人資料**，包含病歷號、姓名、日期、影像。
+
+  - type: input
+    id: paragraph-id
+    attributes:
+      label: 有問題的語料段落 id
+      description: 例如 `stone-01`、`eau-pca-33`。若是系統回答有問題但不確定來自哪一段，填「不確定」。
+      placeholder: stone-01
+    validations:
+      required: true
+
+  - type: textarea
+    id: whats-wrong
+    attributes:
+      label: 哪裡有問題
+      description: 現在寫的是什麼、為什麼不對
+    validations:
+      required: true
+
+  - type: textarea
+    id: correct-content
+    attributes:
+      label: 正確的內容應該是
+      description: 若能直接提供修正後的敘述最好
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: 依據來源
+      description: 指引名稱＋版本＋章節或頁碼；或期刊 DOI。請盡量具體。
+      placeholder: |
+        EAU Guidelines on Urolithiasis 2025, section 3.4.2
+        或 台灣泌尿科醫學會 XXX 共識 2024, p.12
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 嚴重程度
+      options:
+        - 可能造成臨床傷害（劑量、禁忌症、適應症錯誤）
+        - 內容過時（已被新版指引取代）
+        - 敘述不精確但不致誤導
+        - 翻譯或用詞問題
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 確認
+      options:
+        - label: 我確認本則回報未包含任何病人可辨識資訊
+          required: true

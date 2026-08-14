@@ -1,6 +1,11 @@
-jieba
-rank-bm25
-flask
-# 選用：接大模型時安裝其一
-# anthropic
-# openai
+# UROBOT TW — 核心相依套件
+# 版本上限刻意設定，避免上游 breaking change 讓既有索引或斷詞行為改變。
+jieba>=0.42.1,<0.43
+rank-bm25>=0.2.2,<0.3
+flask>=3.0,<4.0
+
+# 選用：接大模型時再裝其一
+# anthropic>=0.40,<1.0      # Claude API
+# （Ollama 走 HTTP，不需額外套件）
+
+# 開發用：pip install -r requirements-dev.txt
