@@ -28,7 +28,9 @@
    兩者在語料中以 source 欄位明確區分，作答時不應混淆。
 """
 import argparse
+import collections
 import csv
+import datetime
 import io
 import json
 import pathlib
@@ -221,10 +223,56 @@ def is_urology(row, kind):
     return any(k in zh for k in UROLOGY_KEYWORDS_ZH) or _en_matches(en)
 
 
-def to_docs(rows, kind, source_note):
+# ---------------- 有效期間 ----------------
+# ⚠️ 法遵重點：健保開放資料是「歷史檔」，含大量已失效的品項。
+# 實測 719 段泌尿科藥品語料中有 660 段（92%）給付期間已過期，最舊的失效於民國 98 年。
+# 把過期價格與給付條件當成現行資訊提供給臨床端，是真實的風險，故預設一律排除。
+
+def parse_nhi_date(s):
+    """健保資料的日期有兩種格式，回傳 datetime.date 或 None。
+       藥品：民國 7 碼／6 碼，如 1130101、980930
+       診療項目：西元帶斜線，如 2024/03/01（2910/12/31 為「無迄日」哨兵值）
+    """
+    s = (s or "").strip()
+    if not s:
+        return None
+    if "/" in s or "-" in s:
+        parts = re.split(r"[/-]", s)
+        if len(parts) != 3:
+            return None
+        try:
+            y, m, d = (int(p) for p in parts)
+        except ValueError:
+            return None
+    else:
+        if not s.isdigit() or len(s) not in (6, 7):
+            return None
+        y, m, d = int(s[:-4]) + 1911, int(s[-4:-2]), int(s[-2:])
+    try:
+        return datetime.date(y, m, d)
+    except ValueError:
+        return None
+
+
+def is_current(row, kind, today=None):
+    """迄日已過 → 視為失效。無迄日或無法判讀 → 視為現行。"""
+    today = today or datetime.date.today()
+    end = parse_nhi_date(pick(row, FIELDS[kind]["end"]))
+    return end is None or end >= today
+
+
+def to_docs(rows, kind, source_note, include_expired=False):
     fields = FIELDS[kind]
+
+    rows = [r for r in rows if is_urology(r, kind)]
+    if not include_expired:
+        rows = [r for r in rows if is_current(r, kind)]
+
+    if kind == "drugs":
+        return _aggregate_drugs(rows, fields, source_note)
+
     docs = []
-    for i, row in enumerate(r for r in rows if is_urology(r, kind)):
+    for i, row in enumerate(rows):
         code = pick(row, fields["code"])
         zh = pick(row, fields["name_zh"])
         en = pick(row, fields["name_en"])
@@ -245,38 +293,90 @@ def to_docs(rows, kind, source_note):
             if note:
                 parts.append(f"備註：{note}")
             section = f"健保給付／診療項目／{zh or en}"
-        else:
-            parts = [f"藥品代號 {code}：{zh or en}"]
-            if zh and en:
-                parts.append(f"（{en}）")
-            ing = pick(row, fields["ingredient"])
-            if ing:
-                parts.append(f"成分 {ing}。")
-            form = pick(row, fields["form"])
-            if form:
-                parts.append(f"劑型 {form}。")
-            atc = pick(row, fields["atc"])
-            if atc:
-                parts.append(f"ATC 代碼 {atc}。")
-            price = pick(row, fields["price"])
-            if price:
-                parts.append(f"健保支付價 {price} 元。")
-            chapter = pick(row, fields["chapter"])
-            if chapter:
-                parts.append(f"適用給付規定章節：{chapter}。")
-            period = " 至 ".join(x for x in (pick(row, fields["start"]), pick(row, fields["end"])) if x)
-            if period:
-                parts.append(f"給付期間 {period}。")
-            section = f"健保給付／藥品／{zh or en}"
 
         docs.append({
-            "id": f"nhi-{'proc' if kind == 'procedures' else 'drug'}-{re.sub(r'[^A-Za-z0-9]', '', code) or i:0>6}",
+            "id": f"nhi-proc-{re.sub(r'[^A-Za-z0-9]', '', code) or i:0>6}",
             "source": source_note,
             "section": section,
             "text": " ".join(parts),
         })
 
     # id 去重（同代碼多筆時保留第一筆）
+    seen, unique = set(), []
+    for d in docs:
+        if d["id"] not in seen:
+            seen.add(d["id"])
+            unique.append(d)
+    return unique
+
+
+# ---------------- 藥品：按成分聚合 ----------------
+# 為什麼要聚合：實測 719 段藥品語料只對應 55 種成分，92% 是「同成分不同廠牌」。
+# 逐品項建語料有兩個壞處：
+#   1. 幾十段幾乎一樣的內容會灌爆 BM25 分數，把真正的臨床指引擠掉
+#   2. 單一品項的敘述（「替你坦舒持續釋放膠囊0.2毫克」）與臨床提問對不上
+# 聚合後每個成分一段，資訊密度高、也不會重複。
+#
+# ⚠️ 法遵重點：以下所有欄位都直接來自健保署資料集，本專案不添加任何
+#    自行撰寫的適應症、療效或用法敘述。給付資料 ≠ 臨床適應症建議。
+
+DRUG_DISCLAIMER = ("以上為健保給付行政資料，非臨床適應症或療效建議；"
+                   "實際給付範圍與價格以健保署最新公告為準。")
+
+
+def _norm_ingredient(text):
+    """成分欄形如 'TAMSULOSIN HCL .2 MG'，取到第一個數字或劑量單位前為止。"""
+    s = (text or "").strip().upper()
+    s = re.split(r"[0-9(]", s)[0]
+    s = re.sub(r"\b(HCL|HYDROCHLORIDE|SODIUM|ACETATE|CITRATE|SUCCINATE|TARTRATE|"
+               r"MALEATE|SULFATE|SULPHATE|MESYLATE|FUMARATE|TRIHYDRATE|MONOHYDRATE|"
+               r"ANHYDROUS|BASE|MG|ML|MCG|G)\b", " ", s)
+    return re.sub(r"[\s,.\-]+", " ", s).strip()
+
+
+def _aggregate_drugs(rows, fields, source_note):
+    groups = collections.OrderedDict()
+    for row in rows:
+        atc = pick(row, fields["atc"]).upper()
+        ing = _norm_ingredient(pick(row, fields["ingredient"])) or pick(row, fields["name_en"]).upper()
+        if not (atc and ing):
+            continue
+        groups.setdefault((atc, ing), []).append(row)
+
+    docs = []
+    for (atc, ing), items in groups.items():
+        # 支付價為 0 代表未定價／已取消，不是「免費」，列出來會誤導臨床端
+        prices = sorted(
+            {v for v in (float(p) for p in (pick(r, fields["price"]) for r in items)
+                         if re.fullmatch(r"\d+(\.\d+)?", p or ""))
+             if v > 0})
+        forms = sorted({pick(r, fields["form"]) for r in items if pick(r, fields["form"])})
+        chapters = sorted({pick(r, fields["chapter"]) for r in items if pick(r, fields["chapter"])})
+        names = [pick(r, fields["name_zh"]) or pick(r, fields["name_en"]) for r in items]
+        names = [n for n in dict.fromkeys(names) if n]
+
+        parts = [f"成分 {ing}（ATC 代碼 {atc}）。",
+                 f"健保現行收載 {len(items)} 個品項。"]
+        if names:
+            shown = "、".join(names[:5])
+            parts.append(f"品項例如：{shown}{'等。' if len(names) > 5 else '。'}")
+        if forms:
+            parts.append(f"劑型：{'、'.join(forms[:6])}。")
+        if prices:
+            parts.append(f"健保支付價 {prices[0]:g} 元。" if len(prices) == 1
+                         else f"健保支付價區間 {prices[0]:g}–{prices[-1]:g} 元。")
+        if chapters:
+            parts.append(f"適用給付規定章節：{'、'.join(chapters[:4])}。")
+        parts.append(DRUG_DISCLAIMER)
+
+        slug = re.sub(r"[^A-Z0-9]+", "-", ing).strip("-")[:28]
+        docs.append({
+            "id": f"nhi-drug-{atc}-{slug}",
+            "source": source_note,
+            "section": f"健保給付／藥品／{ing}",
+            "text": " ".join(parts),
+        })
+
     seen, unique = set(), []
     for d in docs:
         if d["id"] not in seen:
@@ -327,7 +427,14 @@ def main():
     ap.add_argument("--from-file", help="用手動下載的檔案，不連網")
     ap.add_argument("--inspect", action="store_true", help="只檢視欄位與樣本，不產語料")
     ap.add_argument("--outdir", default="corpus", help="輸出目錄（預設 corpus/）")
+    ap.add_argument("--include-expired", action="store_true",
+                    help="連給付期間已過期的項目也收錄（僅供研究用，"
+                         "產出的語料不得用於臨床參考）")
     args = ap.parse_args()
+
+    if args.include_expired:
+        print("⚠️  已啟用 --include-expired：產出的語料含失效的給付價格與條件，"
+              "不得作為現行健保給付依據。\n")
 
     kinds = [args.only] if args.only else list(DATASETS)
     if args.from_file and not args.only:
@@ -348,10 +455,23 @@ def main():
             inspect(rows, kind)
             continue
 
+        fetched = datetime.date.today().isoformat()
         source = (f"{meta['name']}（衛生福利部中央健康保險署，"
-                  f"政府資料開放授權條款第1版；取自 {meta['page']}）")
-        docs = to_docs(rows, kind, source)
-        print(f"總筆數 {len(rows)} → 判定為泌尿科相關 {len(docs)} 筆")
+                  f"政府資料開放授權條款第1版；取自 {meta['page']}，"
+                  f"資料擷取日期 {fetched}"
+                  f"{'；含已失效項目' if args.include_expired else ''}）")
+
+        urology = [r for r in rows if is_urology(r, kind)]
+        current = [r for r in urology if is_current(r, kind)]
+        docs = to_docs(rows, kind, source, include_expired=args.include_expired)
+
+        print(f"總筆數 {len(rows)} → 泌尿科相關 {len(urology)} 筆"
+              f" → 現行有效 {len(current)} 筆"
+              f"（排除失效 {len(urology) - len(current)} 筆）")
+        if kind == "drugs":
+            print(f"  按成分聚合後：{len(docs)} 段語料")
+        else:
+            print(f"  產出語料：{len(docs)} 段")
 
         if not docs:
             print("⚠️ 沒有篩出任何資料，欄位可能對不上。請執行 --inspect 檢查。")

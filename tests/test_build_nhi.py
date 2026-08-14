@@ -4,6 +4,7 @@
 這裡驗的是「欄位對得上時，篩選與輸出格式是否正確」。
 """
 import csv
+import datetime
 import io
 import pathlib
 import sys
@@ -166,7 +167,7 @@ def test_drug_selection_is_atc_only(expected, row):
 def test_drugs_filtered_by_atc_code():
     docs = B.to_docs(B.parse(_csv_bytes(DRUG_ROWS)), "drugs", "測試")
     ids = [d["id"] for d in docs]
-    assert ids == ["nhi-drug-AC12345", "nhi-drug-CD55555"], \
+    assert ids == ["nhi-drug-G04CA02-TAMSULOSIN", "nhi-drug-L02AE02-LEUPRORELIN"], \
         "應收錄 G04（泌尿科用藥）與 L02AE（攝護腺癌 ADT），排除 A10（糖尿病）"
 
 
@@ -175,6 +176,145 @@ def test_procedures_filtered_by_keyword():
     ids = [d["id"] for d in docs]
     assert "nhi-proc-79001B" in ids and "nhi-proc-79411B" in ids
     assert "nhi-proc-47029B" not in ids, "全膝關節置換術不屬於泌尿科"
+
+
+# ---------- 有效期間（法遵重點） ----------
+
+@pytest.mark.parametrize("raw,expected", [
+    ("1130101", datetime.date(2024, 1, 1)),    # 民國 7 碼
+    ("980930", datetime.date(2009, 9, 30)),    # 民國 6 碼
+    ("2024/03/01", datetime.date(2024, 3, 1)),  # 西元帶斜線
+    ("2910/12/31", datetime.date(2910, 12, 31)),  # 「無迄日」哨兵值
+    ("", None),
+    ("abc", None),
+    ("1139999", None),                          # 不合法月日
+])
+def test_parse_nhi_date(raw, expected):
+    assert B.parse_nhi_date(raw) == expected
+
+
+TODAY = datetime.date(2026, 8, 15)
+
+
+def test_expired_drugs_excluded_by_default():
+    """實測 92% 藥品品項的給付期間已過期，最舊失效於民國 98 年。
+    把失效價格當現行資訊提供給臨床端是真實風險，必須預設排除。"""
+    rows = [
+        _drug("EXP1", "舊品項A", "Old A", "TAMSULOSIN", "G04CA02"),
+        _drug("CUR1", "現行品項", "Current", "TAMSULOSIN", "G04CA02"),
+    ]
+    rows[0]["有效迄日"] = "980930"    # 2009 年就失效
+    rows[1]["有效迄日"] = ""          # 無迄日 = 現行
+
+    assert B.is_current(rows[0], "drugs", TODAY) is False
+    assert B.is_current(rows[1], "drugs", TODAY) is True
+
+    docs = B.to_docs(B.parse(_csv_bytes(rows)), "drugs", "測試")
+    assert len(docs) == 1
+    assert "1 個品項" in docs[0]["text"], "失效品項不應被計入品項數"
+
+
+def test_include_expired_flag_restores_them():
+    rows = [_drug("EXP1", "舊品項", "Old", "TAMSULOSIN", "G04CA02"),
+            _drug("CUR1", "現行品項", "Cur", "TAMSULOSIN", "G04CA02")]
+    rows[0]["有效迄日"] = "980930"
+    rows[1]["有效迄日"] = ""
+    docs = B.to_docs(B.parse(_csv_bytes(rows)), "drugs", "測試", include_expired=True)
+    assert "2 個品項" in docs[0]["text"]
+
+
+def test_expired_procedures_excluded():
+    row = ["79001B", "28500", "2010/01/01", "2015/12/31", "TURP", "經尿道攝護腺切除術", ""]
+    assert B.to_docs(B.parse(_ods_bytes(PROC_HEADER, [row])), "procedures", "測試") == []
+
+
+def test_sentinel_end_date_treated_as_current():
+    """健保支付標準用 2910/12/31 表示「無迄日」，不可被當成過期。"""
+    row = ["79001B", "28500", "2024/03/01", "2910/12/31", "TURP", "經尿道攝護腺切除術", ""]
+    assert len(B.to_docs(B.parse(_ods_bytes(PROC_HEADER, [row])), "procedures", "測試")) == 1
+
+
+# ---------- 藥品聚合 ----------
+
+@pytest.mark.parametrize("raw,expected", [
+    ("TAMSULOSIN HCL .2 MG", "TAMSULOSIN"),
+    ("LEUPRORELIN ACETATE 3.75MG", "LEUPRORELIN"),
+    ("PIPEMIDIC ACID (TRIHYDRATE) 250 MG", "PIPEMIDIC ACID"),
+    ("BICALUTAMIDE 50 MG", "BICALUTAMIDE"),
+])
+def test_ingredient_normalisation(raw, expected):
+    assert B._norm_ingredient(raw) == expected
+
+
+def test_drugs_aggregated_by_ingredient():
+    """同成分不同廠牌應合併成一段，否則幾十段近乎相同的內容會灌爆 BM25。"""
+    rows = [_drug(f"T{i}", f"甲廠牌{i}", f"Brand{i}", "TAMSULOSIN HCL .2 MG", "G04CA02")
+            for i in range(12)]
+    rows.append(_drug("B1", "比卡魯胺", "Bica", "BICALUTAMIDE 50 MG", "L02BB03"))
+    docs = B.to_docs(B.parse(_csv_bytes(rows)), "drugs", "測試")
+
+    assert len(docs) == 2, f"13 個品項、2 種成分 → 應產出 2 段，實際 {len(docs)}"
+    tam = next(d for d in docs if "TAMSULOSIN" in d["id"])
+    assert "12 個品項" in tam["text"]
+    assert "G04CA02" in tam["text"]
+
+
+def test_price_range_reported():
+    rows = [_drug("P1", "甲", "A", "TAMSULOSIN", "G04CA02"),
+            _drug("P2", "乙", "B", "TAMSULOSIN", "G04CA02")]
+    rows[0]["支付價"], rows[1]["支付價"] = "7.4", "15.2"
+    text = B.to_docs(B.parse(_csv_bytes(rows)), "drugs", "測試")[0]["text"]
+    assert "7.4–15.2" in text
+
+
+def test_zero_price_not_reported_as_free():
+    """支付價 0 代表未定價／已取消，不是免費。列成「0 元起」會誤導臨床端。"""
+    rows = [_drug("Z1", "甲", "A", "TAMSULOSIN", "G04CA02"),
+            _drug("Z2", "乙", "B", "TAMSULOSIN", "G04CA02")]
+    rows[0]["支付價"], rows[1]["支付價"] = "0", "11.8"
+    text = B.to_docs(B.parse(_csv_bytes(rows)), "drugs", "測試")[0]["text"]
+    assert "0–11.8" not in text
+    assert "健保支付價 11.8 元" in text
+
+
+def test_all_zero_prices_omits_price_entirely():
+    rows = [_drug("Z1", "甲", "A", "TAMSULOSIN", "G04CA02")]
+    rows[0]["支付價"] = "0"
+    text = B.to_docs(B.parse(_csv_bytes(rows)), "drugs", "測試")[0]["text"]
+    assert "支付價" not in text
+
+
+# ---------- 法遵：不得夾帶自撰醫療內容 ----------
+
+def test_drug_entries_carry_disclaimer():
+    """給付資料不等於臨床適應症建議，每一段都必須帶這句話。"""
+    docs = B.to_docs(B.parse(_csv_bytes(DRUG_ROWS)), "drugs", "測試")
+    assert docs
+    for d in docs:
+        assert "非臨床適應症或療效建議" in d["text"]
+
+
+FORBIDDEN_CLINICAL_WORDS = ["適應症為", "建議用於", "第一線", "療效", "可治療", "應使用"]
+
+
+def test_drug_entries_contain_no_authored_clinical_claims():
+    """藥品語料只能由健保署欄位組成，不得出現本專案自行撰寫的臨床主張。"""
+    docs = B.to_docs(B.parse(_csv_bytes(DRUG_ROWS)), "drugs", "測試")
+    for d in docs:
+        body = d["text"].replace(B.DRUG_DISCLAIMER, "")
+        for word in FORBIDDEN_CLINICAL_WORDS:
+            assert word not in body, f"{d['id']} 疑似含自撰臨床主張：「{word}」"
+
+
+def test_source_attribution_is_preserved():
+    """政府資料開放授權條款第 1 版要求註明出處。"""
+    docs = B.to_docs(B.parse(_csv_bytes(DRUG_ROWS)), "drugs",
+                     "健保用藥品項查詢項目檔（衛生福利部中央健康保險署，"
+                     "政府資料開放授權條款第1版；資料擷取日期 2026-08-15）")
+    for d in docs:
+        assert "中央健康保險署" in d["source"]
+        assert "政府資料開放授權條款" in d["source"]
+        assert "資料擷取日期" in d["source"]
 
 
 # ---------- 輸出格式 ----------
