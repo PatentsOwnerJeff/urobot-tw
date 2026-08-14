@@ -52,18 +52,24 @@ def _load_glossary():
 
 
 def expand(query: str):
-    """回傳查詢中命中的中文詞彙所對應的英文同義詞（去重、保持穩定順序）。"""
+    """回傳查詢中命中的詞彙所對應的擴展詞（中英皆有，去重、保持穩定順序）。
+
+    詞條前綴 ⚠ 表示該對應屬定義層級的展開、尚待臨床審閱；檢索時照用，
+    但標記保留在檔案裡供人工複查（見 glossary 的 _review 說明）。
+    """
     if os.getenv("UROBOT_NO_EXPAND"):
         return []
     terms, seen = [], set()
+    glossary = _load_glossary()
     # 長詞優先：先比對「輸尿管結石」再比對「結石」，兩者都會加入，長詞的專指性較高
-    for zh in sorted(_load_glossary(), key=len, reverse=True):
+    for zh in sorted(glossary, key=len, reverse=True):
         if zh in query:
-            for en in _load_glossary()[zh]:
-                low = en.lower()
-                if low not in seen:
+            for term in glossary[zh]:
+                term = term.lstrip("⚠").strip()
+                low = term.lower()
+                if term and low not in seen:
                     seen.add(low)
-                    terms.append(en)
+                    terms.append(term)
     return terms
 
 

@@ -19,3 +19,7 @@ corpus/tua_*.jsonl
 
 # 參考用的他人開源碼（依其原始授權自行取得）
 reference-UroBot/
+
+# 給付規定 PDF 快取（build_nhi_rules.py 下載，可隨時重抓）
+.nhi_rules_pdf/
+.cache/
