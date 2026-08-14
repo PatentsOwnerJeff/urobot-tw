@@ -1,0 +1,60 @@
+cff-version: 1.2.0
+title: "UROBOT TW: Open-source Taiwanese urology clinical decision-support AI"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  # TODO: 發表論文前請把 alias 換成真實姓名與 ORCID
+  - alias: PatentsOwnerJeff
+    affiliation: "英普瑞斯股份有限公司 (Impress Co., Ltd.)"
+  - alias: wenhuikuo
+repository-code: "https://github.com/PatentsOwnerJeff/urobot-tw"
+url: "https://patentsownerjeff.github.io/urobot-tw/"
+abstract: >-
+  UROBOT TW is an open-source retrieval-augmented generation (RAG) system for
+  urology clinical decision support in Taiwan. It retrieves guideline passages,
+  generates answers with a pluggable large language model, and cites the source
+  of every point. Unlike existing systems, it targets Traditional Chinese,
+  Taiwanese clinical practice and National Health Insurance reimbursement rules,
+  and is not bound to any single model vendor. It includes a built-in evaluation
+  harness benchmarked against the Rate of Correct Answers (RoCA) methodology.
+keywords:
+  - urology
+  - clinical decision support
+  - retrieval-augmented generation
+  - large language models
+  - Traditional Chinese
+  - Taiwan
+  - open source
+license: Apache-2.0
+version: "0.1.0"
+date-released: "2026-08-14"
+
+references:
+  - type: article
+    title: >-
+      Superhuman performance on urology board questions using an explainable
+      language model enhanced with European Association of Urology guidelines
+    notes: >-
+      對標基準（benchmark reference）。UROBOT TW 的 eval.py 採用其 RoCA
+      （Rate of Correct Answers）評測方法。
+    authors:
+      - family-names: Hetz
+        given-names: "Martin J."
+      - family-names: Carl
+        given-names: Nicolas
+      - family-names: Haggenmüller
+        given-names: Sarah
+      - family-names: Wies
+        given-names: Christoph
+      - family-names: Kather
+        given-names: "Jakob Nikolas"
+      - family-names: Michel
+        given-names: "Maurice Stephan"
+      - family-names: Wessels
+        given-names: Frederik
+      - family-names: Brinker
+        given-names: "Titus J."
+    journal: "ESMO Real World Data and Digital Oncology"
+    year: 2024
+    doi: "10.1016/j.esmorw.2024.100078"
+    repository-code: "https://github.com/DBO-DKFZ/UroBot"
