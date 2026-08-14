@@ -1,5 +1,10 @@
 # UROBOT® TW — 開源台灣泌尿科臨床決策輔助 AI
 
+[![CI](https://github.com/PatentsOwnerJeff/urobot-tw/actions/workflows/ci.yml/badge.svg)](https://github.com/PatentsOwnerJeff/urobot-tw/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 > UROBOT® 為英普瑞斯股份有限公司之註冊商標（中華民國註冊第 02509814 號，第 10、44 類）。
 
 **Open-source Taiwanese urology clinical decision-support AI.** RAG 架構：檢索泌尿科指引 → 大模型作答 → 逐點標註出處。與德國 DKFZ [UroBot](https://github.com/DBO-DKFZ/UroBot)（EAU 指引＋GPT-4o，專科考題 88.4%）同架構，差異化：繁體中文、台灣臨床實務、健保給付規範、**不綁定任何一家模型供應商**。
@@ -7,8 +12,9 @@
 ## 特色
 
 - **可插拔模型層**：Claude API（預設推薦）／ Ollama 本地開源模型（免費、資料不出門）／純檢索模式（免任何 key）
-- **中英跨語檢索**：EAU 英文指引每段附繁中摘要一起建索引，中文提問可命中英文指引
-- **內建評測系統**：`eval.py` 對標 UroBot 的考題正確率（RoCA）評測法
+- **中英跨語檢索**：英文指引每段附繁中摘要一起建索引，再加上[中英醫學詞對照表](glossary_zh_en.json)做查詢擴展，中文提問可命中英文指引
+- **台灣健保給付規範**：[`build_nhi_corpus.py`](build_nhi_corpus.py) 直接從政府開放資料建置給付條件語料 —— 這是國外系統沒有的
+- **內建評測系統**：`eval.py` 對標 UroBot 的考題正確率（RoCA）評測法，結果可存檔比較
 - **語料即插即用**：新增 jsonl 檔重跑 `ingest.py` 即擴充知識庫
 
 ## 快速開始
@@ -25,46 +31,109 @@ python app.py        # → http://127.0.0.1:5000
 # A. Claude API（推薦）
 pip install anthropic && export ANTHROPIC_API_KEY=sk-ant-...
 
-# B. 本地 Ollama（完全免費，適合醫院內部署）
+# B. 本地 Ollama（完全免費，適合醫院內部署，資料不出門）
 #    先安裝 https://ollama.com 並 ollama pull llama3.1
 export UROBOT_OLLAMA_MODEL=llama3.1
 
 # C. 什麼都不設 → 純檢索模式（回傳指引段落＋出處）
 ```
 
+## 建置語料
+
+Clone 下來預設只有 10 段示範語料。要讓系統真正好用，請自行建置：
+
+### 台灣健保給付規範（可直接執行，資料可合法散布）
+
+```bash
+python build_nhi_corpus.py --inspect     # 先看資料長什麼樣、欄位對不對得上
+python build_nhi_corpus.py               # 產生 corpus/nhi_*_urology.jsonl
+python ingest.py
+```
+
+資料來自[政府資料開放平臺](https://data.gov.tw/dataset/9405)，授權為政府資料開放授權條款第 1 版，可再散布與衍生。
+
+程式以**啟發式**篩出泌尿科相關項目：藥品先看 ATC 代碼（G04 泌尿科用藥、L02AE GnRH 促效劑、L02BB 抗雄性素），沒命中再比對中英文品名與成分關鍵字；診療項目則比對中英文名稱關鍵字，並排除腎上腺相關項目。**關鍵字比對必然有誤判**，語料產生後請人工抽查，篩選規則在 `build_nhi_corpus.py` 頂端可自行調整。
+
+### 學會指引（需自行取得，不隨 repo 散布）
+
+EAU / AUA / TUA 指引的著作權屬原機構，本專案**不散布原文**，只提供轉換工具：
+
+```bash
+pip install pypdf
+# 自行從 https://uroweb.org/guidelines 下載 PDF
+python build_corpus.py ~/Downloads/EAU-Urolithiasis-2025.pdf \
+    --prefix eau-stone \
+    --source "EAU Guidelines on Urolithiasis 2025" \
+    --out corpus/eau_urolithiasis.jsonl
+
+python build_corpus.py --translate corpus/eau_urolithiasis.jsonl  # 補繁中摘要
+python ingest.py
+```
+
+`corpus/eau_*.jsonl` 已列入 `.gitignore`，請勿提交。詳見 [CONTRIBUTING.md](CONTRIBUTING.md) 的著作權章節。
+
 ## 評測
 
 ```bash
-python eval.py                       # 內建 12 題示範考題
-python eval.py exams/你的題庫.jsonl   # 泌尿專科甄審考題轉成同格式即可評測
+python eval.py                                   # 內建 12 題示範考題
+python eval.py exams/你的題庫.jsonl               # 泌尿專科甄審考題轉成同格式即可評測
+python eval.py --out results/claude.json         # 存檔，供跨模型比較
+python eval.py --compare results/*.json          # 比較不同模型／設定的成績
 ```
 
 題目格式：`{"id","question","options":{"A"..."D"},"answer","evidence":[相關段落id]}`
 
+有 LLM 時算答題正確率（RoCA），沒有 LLM 時算檢索命中率 —— 後者不需任何 API key，CI 在每個 PR 與 main 的 push 都會跑。
+
 ## 語料庫
 
-| 檔案 | 內容 | 段落數 |
-|---|---|---|
-| `demo_guidelines.jsonl` | 繁中示範語料 | 10 |
-| `eau_urolithiasis.jsonl` | EAU 結石指引（英文＋繁中摘要） | 52 |
-| `eau_prostate_cancer.jsonl` | EAU 攝護腺癌指引 | 64 |
-| `eau_male_luts.jsonl` | EAU 男性 LUTS/BPH 指引 | 50 |
+| 檔案 | 內容 | 取得方式 | 可否公開散布 |
+|---|---|---|---|
+| `demo_guidelines.jsonl` | 繁中示範語料（10 段） | 已隨 repo 附上 | ✅ |
+| `nhi_procedures_urology.jsonl` | 健保診療項目給付 | 執行 `build_nhi_corpus.py` | ✅ 政府開放資料 |
+| `nhi_drugs_urology.jsonl` | 健保泌尿科用藥給付 | 執行 `build_nhi_corpus.py` | ✅ 政府開放資料 |
+| `eau_*.jsonl` | EAU 指引 | 執行 `build_corpus.py` | ❌ 著作權屬 EAU |
 
-⚠️ **著作權注意**：指引語料著作權屬原機構（EAU/TUA 等）。公開 repo 預設排除 `eau_*.jsonl`（見 `.gitignore`），使用者需在本機自行建置，或待取得機構授權後散布。程式碼本身為 Apache-2.0。
+⚠️ **著作權注意**：指引語料著作權屬原機構（EAU/TUA 等）。公開 repo 預設排除 `eau_*.jsonl`，使用者需在本機自行建置，或待取得機構授權後散布。程式碼本身為 Apache-2.0。
+
+⚠️ **給付規定 ≠ 臨床指引**：健保給付條件反映的是保險給付範圍，不等於醫療上的最佳做法。兩者在語料中以 `source` 欄位明確區分。
 
 ## 架構
 
 ```
-corpus/*.jsonl → ingest.py（jieba+BM25）→ retrieve.py（top-k）
-→ answer.py（Claude/Ollama 作答＋出處）→ app.py（Web UI）／eval.py（評測）
+corpus/*.jsonl ─┬─ build_corpus.py      （學會指引 PDF → jsonl，使用者自行建置）
+                └─ build_nhi_corpus.py  （健保開放資料 → jsonl）
+      ↓
+ingest.py（jieba + BM25）→ index.pkl
+      ↓
+retrieve.py（top-k ＋ glossary_zh_en.json 中英查詢擴展）
+      ↓
+answer.py（Claude / Ollama / 純檢索，作答並標註出處）
+      ↓
+app.py（Web UI）  ／  eval.py（評測，結果可存檔比較）
 ```
+
+## 開發
+
+```bash
+pip install -r requirements-dev.txt
+python ingest.py
+python -m pytest -q
+```
+
+歡迎參與，請先讀 [CONTRIBUTING.md](CONTRIBUTING.md)。臨床內容有誤請開 [correctness issue](https://github.com/PatentsOwnerJeff/urobot-tw/issues/new?template=clinical_correctness.yml)，這類問題最優先處理。
+
+安全性與部署注意事項見 [SECURITY.md](SECURITY.md)。
 
 ## 路線圖
 
+- [x] 中英醫學詞對照表查詢擴展
+- [x] 健保給付規範語料管線
+- [x] CI 與基礎測試
 - [ ] 向量檢索（bge-m3）混合排序
 - [ ] TUA 指引授權與收錄
 - [ ] 台灣專科甄審題庫完整評測，發表對標論文
-- [ ] 健保給付規定自動更新爬蟲
+- [ ] 健保給付規定自動更新排程
 - [ ] TAIDE/Llama 微調之台灣醫療專用模型
 
 ## 團隊
@@ -80,8 +149,12 @@ corpus/*.jsonl → ingest.py（jieba+BM25）→ retrieve.py（top-k）
 
 感謝德國 DKFZ [UroBot](https://github.com/DBO-DKFZ/UroBot) 團隊公開其方法與評測設計，為本專案提供了對標基準。
 
+健保給付語料取自[政府資料開放平臺](https://data.gov.tw/)，資料提供機關為衛生福利部中央健康保險署。
+
 ## 免責聲明
 
 研發中專案。輸出僅供臨床參考與教育用途，不構成醫療建議，最終決策由醫師負責。
+
+本系統未經任何主管機關（TFDA、FDA、CE 等）審查或核准，不是醫療器材，不得作為診斷或治療依據。
 
 UROBOT® 為英普瑞斯股份有限公司之註冊商標（中華民國註冊第 02509814 號），不在 Apache-2.0 授權範圍內；「UroBot」（DKFZ）為另一獨立學術專案。
