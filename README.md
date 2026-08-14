@@ -67,6 +67,19 @@ corpus/*.jsonl → ingest.py（jieba+BM25）→ retrieve.py（top-k）
 - [ ] 健保給付規定自動更新爬蟲
 - [ ] TAIDE/Llama 微調之台灣醫療專用模型
 
+## 團隊
+
+| 成員 | 角色 |
+|---|---|
+| [@PatentsOwnerJeff](https://github.com/PatentsOwnerJeff) | 專案發起、架構設計、商標與授權 |
+| [@wenhuikuo](https://github.com/wenhuikuo) | 臨床內容審閱、語料整理、評測題庫 |
+
+歡迎泌尿科臨床、NLP、資料工程領域的夥伴參與，請由 Issue 或 PR 開始。
+
+## 致謝
+
+感謝德國 DKFZ [UroBot](https://github.com/DBO-DKFZ/UroBot) 團隊公開其方法與評測設計，為本專案提供了對標基準。
+
 ## 免責聲明
 
 研發中專案。輸出僅供臨床參考與教育用途，不構成醫療建議，最終決策由醫師負責。
