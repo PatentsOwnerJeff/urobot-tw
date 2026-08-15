@@ -43,7 +43,7 @@
   <a class="btn btn-w" href="https://github.com/PatentsOwnerJeff/urobot-tw">GitHub 開源程式碼</a>
   <a class="btn btn-o" href="https://github.com/PatentsOwnerJeff/urobot-tw/releases/tag/v0.1.0">下載 v0.1.0</a>
  </div>
- <div class="ver">v0.1.0 已發布 — 488 段語料隨附，不需 API key 即可執行</div>
+ <div class="ver">v0.1.0 已發布 — 488 段健保與示範語料隨附，不需 API key 即可執行；臨床指引需自行建置</div>
 </header>
 <main>
  <h2>這是什麼？</h2>
@@ -52,7 +52,8 @@
   <div class="card"><h3>台灣健保給付規範</h3><p>隨附 478 段健保語料：診療項目 391、藥品 69、藥品給付規定條文 18，全部取自政府開放資料，可合法散布。這是國外系統沒有的部分。</p></div>
   <div class="card"><h3>不綁定模型供應商</h3><p>Claude API、本地 Ollama 開源模型、純檢索模式三種都能跑；醫院可地端部署，資料不出門。</p></div>
   <div class="card"><h3>跨語與跨用語檢索</h3><p>健保條文寫「前列腺增生」，臨床說「攝護腺肥大」，民眾說「威而鋼」。84 組同義詞對照讓三種說法都問得到。</p></div>
-  <div class="card"><h3>完全開源</h3><p>程式碼以 Apache-2.0 授權公開於 GitHub，85 個測試、CI 把關，歡迎泌尿科醫師與工程師社群共同參與。</p></div>
+  <div class="card"><h3>不知道就說不知道</h3><p>語料庫沒有的主題一律拒答，並告訴你要補哪一本指引、指令怎麼下 —— 不拿字面沾邊的段落硬湊成答案。涵蓋範圍以 <code>scope.json</code> 明示宣告。</p></div>
+  <div class="card"><h3>完全開源</h3><p>程式碼以 Apache-2.0 授權公開於 GitHub，131 個測試、CI 把關，歡迎泌尿科醫師與工程師社群共同參與。</p></div>
  </div>
 
  <h2>實際效果</h2>
@@ -62,16 +63,18 @@
   <tr><td>攝護腺肥大用藥健保給付條件</td><td>藥品給付規定第 5.2.2.2 節</td></tr>
   <tr><td>威而鋼健保有給付嗎</td><td>藥品給付規定第 2.8.2.2 節</td></tr>
   <tr><td>經尿道攝護腺刮除術健保支付點數</td><td>診療項目 79413B</td></tr>
-  <tr><td>血尿要做哪些檢查</td><td>血尿／評估流程</td></tr>
+  <tr><td>女性反覆泌尿道感染要怎麼預防</td><td><strong>拒答</strong> —— 語料庫未涵蓋，並附上補語料步驟</td></tr>
  </table>
- <p class="lead" style="margin-top:14px;font-size:15px;color:#556">檢索品質基準 10 題，Top-1 命中 10/10，每次 CI 都會重跑以防退化。</p>
+ <p class="lead" style="margin-top:14px;font-size:15px;color:#556">檢索品質基準題庫 10 題，其中 2 題屬系統會拒答的主題（不列入排序評測）；其餘 8 題 Top-1 命中 8/8。每次 CI 都會重跑以防退化。</p>
 
  <h2>怎麼跑</h2>
  <pre>git clone https://github.com/PatentsOwnerJeff/urobot-tw.git
 cd urobot-tw
 pip install -r requirements.txt
 python ingest.py     # 488 段語料已隨 repo 附上
-python app.py        # → http://127.0.0.1:5000</pre>
+python app.py        # → http://127.0.0.1:5000
+                     # macOS 的 5000 埠被 AirPlay 佔用時：UROBOT_PORT=5050 python app.py</pre>
+ <div class="note"><strong>開箱能回答的範圍很窄，這點先講清楚。</strong>隨附的 488 段裡有 478 段是健保語料，臨床指引只有 10 段示範。所以開箱狀態<strong>只答得了「台灣健保給付規範」</strong>相關問題，其他泌尿科主題會直接拒答，並在回覆裡附上要補哪一本指引、下載網址、可複製的建置指令，以及 <code>scope.json</code> 要怎麼改。學會指引受著作權保護不能隨程式散布，這是刻意的設計，不是沒做完。</div>
  <div class="note"><strong>本站沒有線上試用。</strong>UROBOT TW 需在自己的電腦或機構內部署 —— 這是刻意的設計：搭配本地 Ollama 或純檢索模式時，病人相關的提問不會離開你的環境。</div>
 
  <h2>目前的限制</h2>
@@ -79,6 +82,7 @@ python app.py        # → http://127.0.0.1:5000</pre>
   <li>學會指引（EAU 等）著作權屬原機構，<strong>不隨程式散布</strong>，需自行以 <code>build_corpus.py</code> 從官網下載建置</li>
   <li>尚未以泌尿專科甄審題庫做過正式評測，目前僅有 12 題示範考題，<strong>還沒有可對外宣稱的分數</strong></li>
   <li>檢索為純 BM25，對「同義但完全不同字」的情形仍有限，向量檢索在路線圖上</li>
+  <li>涵蓋範圍由 <code>scope.json</code> <strong>人工維護</strong>：試過以 BM25 分數與 IDF 加權詞彙覆蓋率自動判斷，兩者在未涵蓋主題上的分數反而比已涵蓋主題高（jieba 會把未收錄的醫學複合詞拆成語料裡都有的字），統計方法在這個規模的語料上不可靠。新增指引語料後<strong>必須手動更新 scope.json</strong>，系統才會開始回答該主題</li>
   <li>健保給付規定會改版，語料標註了擷取日期與條文版本，但<strong>實際給付一律以健保署最新公告為準</strong></li>
  </ul>
 
