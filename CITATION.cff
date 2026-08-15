@@ -4,9 +4,11 @@ message: "If you use this software, please cite it as below."
 type: software
 authors:
   # TODO: 發表論文前請把 alias 換成真實姓名與 ORCID
+  # 註：affiliation 依學術慣例填「進行本研究時的現職機構」，未確認者留空。
   - alias: PatentsOwnerJeff
     affiliation: "英普瑞斯股份有限公司 (Impress Co., Ltd.)"
   - alias: wenhuikuo
+  - alias: Abigail1984
 repository-code: "https://github.com/PatentsOwnerJeff/urobot-tw"
 url: "https://patentsownerjeff.github.io/urobot-tw/"
 abstract: >-
