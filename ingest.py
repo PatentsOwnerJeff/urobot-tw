@@ -9,6 +9,18 @@ from rank_bm25 import BM25Okapi
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
+# BM25 參數。b 控制文件長度正規化，預設 0.75 對短文件過於慷慨 ——
+# 健保診療項目條目只有 30–40 個詞（「診療項目代碼 50009C：前列腺按摩 230 點」），
+# 而給付規定條文有 300+ 詞，結果問「攝護腺肥大用藥給付條件」會被「前列腺按摩」
+# 壓過去。以 benchmarks/retrieval.jsonl 掃描後定為 b=0.3、k1=1.2：
+#   b=0.75（原預設）  Top-1 6/10   MRR 0.710
+#   b=0.30            Top-1 8/10   MRR 0.827
+# 再補上商品名→學名對照（威而鋼→sildenafil 等）後為 Top-1 10/10。
+# tests/test_retrieval_quality.py 會在 CI 擋住排序退化。
+# 可用環境變數覆寫以便重新調校：UROBOT_BM25_B / UROBOT_BM25_K1
+BM25_B = float(os.getenv("UROBOT_BM25_B", "0.3"))
+BM25_K1 = float(os.getenv("UROBOT_BM25_K1", "1.2"))
+
 def tokenize(text: str):
     return [t.lower() for t in jieba.cut_for_search(text) if t.strip()]
 
@@ -32,10 +44,11 @@ def main():
         tokenize(" ".join([d.get("section", ""), d.get("summary_zh", ""), d["text"]]))
         for d in docs
     ]
-    bm25 = BM25Okapi(corpus_tokens)
+    bm25 = BM25Okapi(corpus_tokens, k1=BM25_K1, b=BM25_B)
     with open(os.path.join(BASE, "index.pkl"), "wb") as f:
-        pickle.dump({"bm25": bm25, "docs": docs}, f)
-    print(f"已建立索引：{len(docs)} 個段落 → index.pkl")
+        pickle.dump({"bm25": bm25, "docs": docs,
+                     "params": {"k1": BM25_K1, "b": BM25_B}}, f)
+    print(f"已建立索引：{len(docs)} 個段落 → index.pkl（BM25 k1={BM25_K1}, b={BM25_B}）")
 
 if __name__ == "__main__":
     main()

@@ -3,6 +3,7 @@
   "_note": "這不是嚴格的一對一術語對照表。每個 key 底下列的是『查這個中文詞時，一併搜尋這些詞會提高召回率』，因此包含同義詞、常用縮寫，也包含密切相關的下位詞與術式（例如『包皮』底下有 phimosis 包莖、circumcision 包皮環切術）。若要用作正式術語對照，請勿直接引用本檔。",
   "_note_zh": "部分詞條也列出中文同義詞。理由：健保給付規定條文與臨床慣用語常常不同字 —— 條文寫「前列腺增生」，醫師說「攝護腺肥大」；甚至同一份給付規定裡，5.5.1 節寫「前列腺癌」而 9.40 節寫「攝護腺癌」。這類中文對中文的對應屬於用語差異，不是臨床判斷。",
   "_review": "標記 ⚠ 的詞條屬於定義層級的展開（例如膀胱過動症的診斷要件），已超出單純用語對應，需臨床背景維護者審閱後才視為確定。",
+  "_note_brand": "少數常見商品名（威而鋼、犀利士等）對應到學名。這是公開的品名對照事實，不是療效或適應症主張；目的是讓民眾用慣用說法提問時也能命中以學名撰寫的給付規定條文。",
 
   "結石": ["stone", "stones", "calculus", "calculi", "lithiasis"],
   "尿路結石": ["urolithiasis", "urinary stone"],
@@ -73,7 +74,10 @@
   "風險分級": ["risk stratification", "risk group"],
   "復發": ["recurrence", "recurrent"],
 
-  "勃起功能障礙": ["erectile dysfunction", "ED"],
+  "勃起功能障礙": ["erectile dysfunction", "ED", "sildenafil", "tadalafil", "vardenafil"],
+  "威而鋼": ["sildenafil", "Viagra"],
+  "犀利士": ["tadalafil", "Cialis"],
+  "樂威壯": ["vardenafil", "Levitra"],
   "男性不孕": ["male infertility"],
   "早洩": ["premature ejaculation"],
   "包皮": ["foreskin", "phimosis", "circumcision"],

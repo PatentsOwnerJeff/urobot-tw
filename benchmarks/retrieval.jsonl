@@ -1,0 +1,10 @@
+{"id": "rb01", "query": "攝護腺肥大用藥健保給付條件", "acceptable": ["nhi-rule-5.2.2.1", "nhi-rule-5.2.2.2", "bph-01"], "note": "健保條文寫「前列腺增生」，臨床說「攝護腺肥大」，考驗中文同義詞擴展"}
+{"id": "rb02", "query": "膀胱過動症藥物健保有給付嗎", "acceptable": ["nhi-rule-1.6.3", "oab-01"], "note": "1.6.3 條文只寫頻尿/急尿/急迫性尿失禁，沒有「膀胱過動症」五個字"}
+{"id": "rb03", "query": "攝護腺癌荷爾蒙治療健保給付條件", "acceptable": ["nhi-rule-5.5.1", "nhi-rule-9.39", "nhi-rule-9.40", "nhi-rule-9.54", "nhi-rule-9.90", "nhi-rule-9.94", "pca-01"], "note": "條文用「LHRH 類似劑療法」「去勢療法」，不用「荷爾蒙治療」"}
+{"id": "rb04", "query": "finasteride 給付要什麼條件", "acceptable": ["nhi-rule-5.2.2.1", "nhi-drug-G04CB01-FINASTERIDE"], "note": "以學名直接提問"}
+{"id": "rb05", "query": "威而鋼健保有給付嗎", "acceptable": ["nhi-rule-2.8.2", "nhi-rule-2.8.2.2", "nhi-rule-2.8.2.9"], "note": "以商品名提問，考驗商品名→學名對照"}
+{"id": "rb06", "query": "單純性泌尿道感染要用什麼抗生素", "acceptable": ["uti-01", "nhi-rule-10.1", "nhi-rule-10.8.2"], "note": "臨床指引與給付規定皆可接受"}
+{"id": "rb07", "query": "輸尿管結石怎麼治療", "acceptable": ["stone-01", "stone-02", "nhi-proc-77028B", "nhi-proc-79411B"], "note": "治療指引或對應術式的給付項目皆可接受"}
+{"id": "rb08", "query": "血尿要做哪些檢查", "acceptable": ["hematuria-01"], "note": "純臨床問題，不應被健保語料干擾"}
+{"id": "rb09", "query": "經尿道攝護腺刮除術健保支付點數", "acceptable": ["nhi-proc-79413B", "nhi-proc-79414B", "nhi-proc-79415B", "nhi-proc-78215B", "nhi-proc-79001B"], "note": "直接問點數，應命中診療項目"}
+{"id": "rb10", "query": "PSA 篩檢要注意什麼", "acceptable": ["psa-01"], "note": "純臨床問題"}
