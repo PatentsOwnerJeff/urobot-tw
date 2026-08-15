@@ -10,7 +10,7 @@ import os
 import urllib.error
 import urllib.request
 
-from retrieve import IndexNotBuilt, search
+from retrieve import IndexNotBuilt, scope_of, search
 
 SYSTEM = (
     "你是 UROBOT TW，開源的台灣泌尿科臨床決策輔助 AI。"
@@ -107,21 +107,83 @@ def _retrieval_only(hits):
     lines = ["【純檢索模式 — 設定 ANTHROPIC_API_KEY 或 UROBOT_OLLAMA_MODEL 可獲得整合式回答】\n最相關指引段落："]
     for h in hits:
         body = h.get("summary_zh") or h["text"]
-        lines.append(f"\n▪ {h['section']} [{h['id']}]（相關度 {h['score']}）\n  {body}\n  出處：{h['source']}")
+        # 刻意不顯示 BM25 分數：它跨查詢不可比較，卻長得像信心值。
+        # 答非所問的段落分數常比正確答案高，顯示它只會誤導使用者。見 scope.json。
+        lines.append(f"\n▪ {h['section']} [{h['id']}]\n  {body}\n  出處：{h['source']}")
     lines.append(f"\n{DISCLAIMER}")
     return "\n".join(lines)
 
 
+def _gap_reply(s) -> str:
+    """已知未涵蓋的主題：說明缺什麼，不呈現硬湊出來的段落。
+
+    這裡刻意不回傳檢索結果。BM25 一定找得到字面上沾邊的東西——問「女性反覆
+    泌尿道感染怎麼預防」會回傳結石病人的取石前抗生素——那看起來像答案，
+    接上大模型後還會被寫成通順的臨床建議。對臨床工具而言，這比不回答更危險。
+    """
+    lines = ["【語料庫未涵蓋此主題，不予作答】"]
+    for g in s["gaps"]:
+        lines.append(f"\n▪ {g['topic']}\n  {g['note']}")
+
+    # 只講「沒有資料」對使用者沒用——要讓他知道補哪一本、去哪拿、怎麼建。
+    fixes = [g for g in s["gaps"] if g.get("fix")]
+    if fixes:
+        lines.append("\n─── 要讓系統能回答這個主題 ───")
+    for g in fixes:
+        f = g["fix"]
+        lines.append(
+            f"\n【{g['topic']}】需要：{f['guideline']}\n"
+            f"1. 自行從 {f['url']} 下載 PDF（請自行確認擁有使用權）\n"
+            f"2. python build_corpus.py <下載的PDF> \\\n"
+            f"       --prefix {f['prefix']} \\\n"
+            f"       --source \"{f['guideline']} <年份>\" \\\n"
+            f"       --out {f['out']}\n"
+            f"3. python build_corpus.py --translate {f['out']}   # 補繁中摘要\n"
+            f"4. python ingest.py                                 # 重建索引\n"
+            f"5. 編輯 scope.json：把「{g['topic']}」從 gaps 移到 covered，\n"
+            f"   requires 填 [\"{f['prefix']}\"]，並補上該主題的 keywords"
+        )
+        lines.append(f"   注意：{f['out']} 屬 .gitignore 排除範圍，請勿提交到公開 repo。")
+
+    if s["available"]:
+        lines.append("\n目前語料庫實際涵蓋的主題：")
+        lines += [f"  ・{t}" for t in s["available"]]
+    lines.append(f"\n{DISCLAIMER}")
+    return "\n".join(lines)
+
+
+def _caution(s) -> str:
+    """部分涵蓋或未對應到已宣告主題時的前置警語。"""
+    if s["verdict"] == "partial":
+        missing = "、".join(g["topic"] for g in s["gaps"])
+        return (f"【部分涵蓋】此問題觸及語料庫沒有的主題：{missing}。"
+                f"以下段落只涵蓋得到的部分，缺少的部分不會出現在答案裡。\n")
+    if s["verdict"] == "unknown":
+        return ("【未對應到已宣告主題】此查詢不屬於 scope.json 列出的任何涵蓋範圍，"
+                "以下段落可能只是字面相近，請自行判斷是否相關。\n")
+    return ""
+
+
 def ask(question: str, k: int = 5) -> str:
+    s = scope_of(question)
+    if s["verdict"] == "gap":
+        return _gap_reply(s)
+
     hits = search(question, k)
     if not hits:
         return "語料庫中找不到相關內容。"
 
+    caution = _caution(s)
     b = backend()
     if b == "retrieval":
-        return _retrieval_only(hits)
+        return caution + _retrieval_only(hits)
 
     prompt = f"指引段落：\n{_context(hits)}\n\n問題：{question}"
+    if caution:
+        # 讓模型也知道範圍限制，否則它會用手上有的段落把缺口補成通順的答案
+        prompt = (f"注意：{caution.strip()}\n"
+                  f"回答時必須明講哪一部分語料庫沒有涵蓋，不得以現有段落推論補足。\n\n"
+                  + prompt)
     return _ask_claude(prompt) if b == "claude" else _ask_ollama(prompt)
 
 

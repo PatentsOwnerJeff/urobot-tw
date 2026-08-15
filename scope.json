@@ -1,0 +1,409 @@
+{
+  "_note": [
+    "語料庫涵蓋範圍的明示宣告。用途：在檢索之前判斷「這個主題我們到底有沒有資料」。",
+    "",
+    "為什麼不用統計門檻：BM25 分數跨查詢不可比較，而 jieba 會把未收錄的醫學複合詞",
+    "拆成語料裡都有的字（腎細胞癌 → 腎/細胞/癌），所以任何以分數或詞頻為基礎的",
+    "信心指標都無法區分「有涵蓋」與「湊出來的」。實測「腎細胞癌標靶治療」的加權",
+    "詞彙覆蓋率是 0.562，比合法查詢「PSA 篩檢要注意什麼」的 0.267 還高——統計方法",
+    "在這個規模的語料上是反向的。因此改為明示宣告：範圍由人維護，不由分數猜測。",
+    "",
+    "requires 欄位列出該主題所依賴的段落 id 前綴。系統啟動時檢查索引中是否真的有",
+    "這些段落——EAU 語料不隨 repo 散布，使用者沒自建時，對應主題會自動降級為未涵蓋，",
+    "而不是宣稱有而給出示範層級的答案。",
+    "",
+    "新增指引語料時，請同時在此檔補上對應主題，並把它從 gaps 移除。"
+  ],
+  "covered": [
+    {
+      "topic": "攝護腺肥大／男性下尿路症狀（BPH／LUTS）",
+      "requires": [
+        "eau-luts"
+      ],
+      "detail": "診斷評估、藥物治療、手術術式選擇、夜尿症、男性尿失禁、術後追蹤",
+      "keywords": [
+        "攝護腺肥大",
+        "前列腺肥大",
+        "前列腺增生",
+        "攝護腺增生",
+        "bph",
+        "luts",
+        "下尿路症狀",
+        "排尿困難",
+        "夜尿",
+        "尿流速",
+        "qmax",
+        "ipss",
+        "餘尿",
+        "turp",
+        "holep",
+        "urolift",
+        "rezum",
+        "綠光雷射",
+        "攝護腺切除",
+        "甲型阻斷劑",
+        "阻斷劑",
+        "5-ari",
+        "還原酶抑制劑",
+        "tamsulosin",
+        "finasteride",
+        "dutasteride",
+        "mirabegron",
+        "tadalafil"
+      ]
+    },
+    {
+      "topic": "攝護腺癌",
+      "requires": [
+        "eau-pca"
+      ],
+      "detail": "早期偵測與篩檢、MRI 與切片策略、分期與風險分組、局部治療、荷爾蒙治療、生化復發、轉移性疾病",
+      "keywords": [
+        "攝護腺癌",
+        "前列腺癌",
+        "prostate cancer",
+        "psa",
+        "gleason",
+        "isup",
+        "切片",
+        "biopsy",
+        "psma",
+        "根除性攝護腺切除",
+        "積極監控",
+        "active surveillance",
+        "荷爾蒙治療",
+        "adt",
+        "去勢",
+        "生化復發",
+        "近接治療",
+        "放射治療",
+        "mhspc",
+        "mcrpc"
+      ]
+    },
+    {
+      "topic": "尿路結石",
+      "requires": [
+        "eau-stone"
+      ],
+      "detail": "急性腰痛評估、自然排出、藥物排石、ESWL／URS／PCNL 選擇、代謝評估與復發預防",
+      "keywords": [
+        "結石",
+        "腎結石",
+        "輸尿管結石",
+        "膀胱結石",
+        "尿路結石",
+        "stone",
+        "urolithiasis",
+        "腰痛",
+        "腎絞痛",
+        "eswl",
+        "體外震波",
+        "urs",
+        "輸尿管鏡",
+        "pcnl",
+        "經皮腎",
+        "雙j",
+        "double j",
+        "排石"
+      ]
+    },
+    {
+      "topic": "台灣健保給付規範",
+      "requires": [
+        "nhi-rule",
+        "nhi-proc",
+        "nhi-drug"
+      ],
+      "detail": "診療項目支付點數、泌尿科用藥品項、藥品給付規定條文（OAB 1.6.3、ED 2.8.2、BPH 5.2.2.x、GnRH 5.5.1、抗雄性素 9.x、尿路抗生素 10.x）",
+      "keywords": [
+        "健保",
+        "給付",
+        "支付點數",
+        "支付標準",
+        "申報",
+        "自費",
+        "部分負擔",
+        "給付條件",
+        "給付規定",
+        "nhi",
+        "健保碼",
+        "atc"
+      ]
+    },
+    {
+      "topic": "膀胱過動症（OAB）",
+      "requires": [
+        "eau-luts",
+        "nhi-rule"
+      ],
+      "detail": "抗蕈毒鹼藥物與 β3 促效劑之療效與安全性，以及健保給付規定第 1.6.3 節",
+      "keywords": [
+        "膀胱過動",
+        "oab",
+        "急尿",
+        "頻尿",
+        "急迫性尿失禁",
+        "抗蕈毒鹼",
+        "抗膽鹼",
+        "solifenacin",
+        "tolterodine",
+        "oxybutynin",
+        "betmiga"
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "topic": "腎細胞癌／腎臟腫瘤",
+      "keywords": [
+        "腎細胞癌",
+        "腎臟腫瘤",
+        "腎腫瘤",
+        "腎癌",
+        "rcc",
+        "renal cell",
+        "腎部分切除",
+        "腎臟切除"
+      ],
+      "note": "EAU Renal Cell Carcinoma 指引尚未收錄。語料中僅有健保手術點數條目提及腎臟手術，那是支付標準不是臨床指引。",
+      "fix": {
+        "guideline": "EAU Guidelines on Renal Cell Carcinoma",
+        "url": "https://uroweb.org/guidelines/renal-cell-carcinoma",
+        "prefix": "eau-rcc",
+        "out": "corpus/eau_renal_cell_carcinoma.jsonl"
+      }
+    },
+    {
+      "topic": "膀胱癌／上泌尿道上皮癌",
+      "keywords": [
+        "膀胱癌",
+        "膀胱腫瘤",
+        "上泌尿道上皮癌",
+        "泌尿上皮癌",
+        "bladder cancer",
+        "turbt",
+        "bcg",
+        "卡介苗",
+        "膀胱灌注",
+        "膀胱鏡切除",
+        "膀胱全切"
+      ],
+      "note": "EAU NMIBC／MIBC 與 UTUC 指引尚未收錄。",
+      "fix": {
+        "guideline": "EAU Guidelines on Non-muscle-invasive Bladder Cancer",
+        "url": "https://uroweb.org/guidelines/non-muscle-invasive-bladder-cancer",
+        "prefix": "eau-nmibc",
+        "out": "corpus/eau_nmibc.jsonl"
+      }
+    },
+    {
+      "topic": "睪丸癌",
+      "keywords": [
+        "睪丸癌",
+        "睪丸腫瘤",
+        "testicular",
+        "精原細胞瘤",
+        "seminoma",
+        "afp",
+        "hcg"
+      ],
+      "note": "EAU Testicular Cancer 指引尚未收錄。",
+      "fix": {
+        "guideline": "EAU Guidelines on Testicular Cancer",
+        "url": "https://uroweb.org/guidelines/testicular-cancer",
+        "prefix": "eau-testis",
+        "out": "corpus/eau_testicular_cancer.jsonl"
+      }
+    },
+    {
+      "topic": "陰莖癌",
+      "keywords": [
+        "陰莖癌",
+        "penile cancer",
+        "腹股溝淋巴結廓清"
+      ],
+      "note": "EAU Penile Cancer 指引尚未收錄。語料中僅有健保手術點數條目。",
+      "fix": {
+        "guideline": "EAU Guidelines on Penile Cancer",
+        "url": "https://uroweb.org/guidelines/penile-cancer",
+        "prefix": "eau-penile",
+        "out": "corpus/eau_penile_cancer.jsonl"
+      }
+    },
+    {
+      "topic": "男性不孕症／性腺功能低下",
+      "keywords": [
+        "不孕",
+        "精蟲",
+        "精液分析",
+        "semen analysis",
+        "infertility",
+        "精索靜脈曲張",
+        "varicocele",
+        "睪固酮低下",
+        "hypogonadism"
+      ],
+      "note": "EAU Sexual and Reproductive Health 指引尚未收錄。",
+      "fix": {
+        "guideline": "EAU Guidelines on Sexual and Reproductive Health",
+        "url": "https://uroweb.org/guidelines/sexual-and-reproductive-health",
+        "prefix": "eau-srh",
+        "out": "corpus/eau_sexual_reproductive_health.jsonl"
+      }
+    },
+    {
+      "topic": "勃起功能障礙與早洩（臨床處置）",
+      "keywords": [
+        "勃起功能障礙",
+        "勃起障礙",
+        "陽痿",
+        "erectile dysfunction",
+        "早洩",
+        "premature ejaculation",
+        "陰莖植入物"
+      ],
+      "note": "只收錄了健保給付規定第 2.8.2 節（給付條件），沒有臨床診療指引。給付條件不等於臨床處置建議。",
+      "fix": {
+        "guideline": "EAU Guidelines on Sexual and Reproductive Health",
+        "url": "https://uroweb.org/guidelines/sexual-and-reproductive-health",
+        "prefix": "eau-srh",
+        "out": "corpus/eau_sexual_reproductive_health.jsonl"
+      }
+    },
+    {
+      "topic": "女性尿失禁／骨盆器官脫垂",
+      "keywords": [
+        "女性尿失禁",
+        "壓力性尿失禁",
+        "應力性尿失禁",
+        "stress urinary incontinence",
+        "尿道中段吊帶",
+        "tvt",
+        "tot",
+        "骨盆器官脫垂",
+        "膀胱膨出",
+        "子宮脫垂"
+      ],
+      "note": "EAU Urinary Incontinence 指引尚未收錄。語料中的尿失禁段落只涵蓋男性、且屬 BPH 指引的一小節。",
+      "fix": {
+        "guideline": "EAU Guidelines on Non-neurogenic Female LUTS",
+        "url": "https://uroweb.org/guidelines/non-neurogenic-female-luts",
+        "prefix": "eau-flu",
+        "out": "corpus/eau_female_luts.jsonl"
+      }
+    },
+    {
+      "topic": "神經性膀胱",
+      "keywords": [
+        "神經性膀胱",
+        "neurogenic bladder",
+        "脊髓損傷",
+        "間歇性導尿",
+        "逼尿肌過動"
+      ],
+      "note": "EAU Neuro-urology 指引尚未收錄。",
+      "fix": {
+        "guideline": "EAU Guidelines on Neuro-urology",
+        "url": "https://uroweb.org/guidelines/neuro-urology",
+        "prefix": "eau-neuro",
+        "out": "corpus/eau_neurourology.jsonl"
+      }
+    },
+    {
+      "topic": "泌尿道感染（完整指引）",
+      "keywords": [
+        "泌尿道感染",
+        "尿路感染",
+        "膀胱炎",
+        "腎盂腎炎",
+        "反覆感染",
+        "復發性感染",
+        "urinary tract infection",
+        "pyelonephritis",
+        "無症狀菌尿",
+        "敗血症"
+      ],
+      "note": "只有 1 段示範語料（單純性膀胱炎）與健保抗生素給付條文，不足以支撐臨床決策。EAU Urological Infections 指引尚未收錄。",
+      "fix": {
+        "guideline": "EAU Guidelines on Urological Infections",
+        "url": "https://uroweb.org/guidelines/urological-infections",
+        "prefix": "eau-uti",
+        "out": "corpus/eau_urological_infections.jsonl"
+      }
+    },
+    {
+      "topic": "攝護腺炎／慢性骨盆疼痛症候群",
+      "keywords": [
+        "攝護腺炎",
+        "前列腺炎",
+        "prostatitis",
+        "慢性骨盆疼痛",
+        "cpps"
+      ],
+      "note": "EAU Chronic Pelvic Pain 指引尚未收錄。",
+      "fix": {
+        "guideline": "EAU Guidelines on Chronic Pelvic Pain",
+        "url": "https://uroweb.org/guidelines/chronic-pelvic-pain",
+        "prefix": "eau-cpp",
+        "out": "corpus/eau_chronic_pelvic_pain.jsonl"
+      }
+    },
+    {
+      "topic": "兒童泌尿科",
+      "keywords": [
+        "兒童",
+        "小兒",
+        "嬰兒",
+        "paediatric",
+        "pediatric",
+        "膀胱輸尿管逆流",
+        "隱睪",
+        "包莖",
+        "尿道下裂",
+        "夜尿症兒童"
+      ],
+      "note": "EAU Paediatric Urology 指引尚未收錄。本語料庫的給付與指引內容皆以成人為對象。",
+      "fix": {
+        "guideline": "EAU Guidelines on Paediatric Urology",
+        "url": "https://uroweb.org/guidelines/paediatric-urology",
+        "prefix": "eau-paed",
+        "out": "corpus/eau_paediatric_urology.jsonl"
+      }
+    },
+    {
+      "topic": "血尿之評估",
+      "keywords": [
+        "血尿",
+        "haematuria",
+        "hematuria",
+        "尿有血",
+        "尿液潛血"
+      ],
+      "note": "只有 1 段示範語料（血尿／評估流程）。血尿鑑別診斷需要膀胱癌與上泌尿道上皮癌的指引才完整，而那兩者尚未收錄。",
+      "fix": {
+        "guideline": "EAU Guidelines on Non-muscle-invasive Bladder Cancer（血尿鑑別診斷需要膀胱癌指引）",
+        "url": "https://uroweb.org/guidelines/non-muscle-invasive-bladder-cancer",
+        "prefix": "eau-nmibc",
+        "out": "corpus/eau_nmibc.jsonl"
+      }
+    },
+    {
+      "topic": "腎移植",
+      "keywords": [
+        "腎移植",
+        "腎臟移植",
+        "kidney transplant",
+        "排斥",
+        "免疫抑制"
+      ],
+      "note": "EAU Renal Transplantation 指引尚未收錄。",
+      "fix": {
+        "guideline": "EAU Guidelines on Renal Transplantation",
+        "url": "https://uroweb.org/guidelines/renal-transplantation",
+        "prefix": "eau-tx",
+        "out": "corpus/eau_renal_transplantation.jsonl"
+      }
+    }
+  ]
+}

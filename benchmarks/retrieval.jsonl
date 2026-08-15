@@ -4,7 +4,7 @@
 {"id": "rb04", "query": "finasteride 給付要什麼條件", "acceptable": ["nhi-rule-5.2.2.1", "nhi-drug-G04CB01-FINASTERIDE"], "note": "以學名直接提問"}
 {"id": "rb05", "query": "威而鋼健保有給付嗎", "acceptable": ["nhi-rule-2.8.2", "nhi-rule-2.8.2.2", "nhi-rule-2.8.2.9"], "note": "以商品名提問，考驗商品名→學名對照"}
 {"id": "rb06", "query": "單純性泌尿道感染要用什麼抗生素", "acceptable": ["uti-01", "nhi-rule-10.1", "nhi-rule-10.8.2"], "note": "臨床指引與給付規定皆可接受"}
-{"id": "rb07", "query": "輸尿管結石怎麼治療", "acceptable": ["stone-01", "stone-02", "nhi-proc-77028B", "nhi-proc-79411B"], "note": "治療指引或對應術式的給付項目皆可接受"}
+{"id": "rb07", "query": "輸尿管結石怎麼治療", "acceptable": ["stone-01", "stone-02", "nhi-proc-77028B", "nhi-proc-79411B", "eau-stone-23", "eau-stone-44", "eau-stone-45", "eau-stone-46"], "note": "治療指引或對應術式的給付項目皆可接受。EAU 語料若已自建，其治療章節（適應症/URS vs SWL/藥物排石/自然排出率）會排在示範語料之前，同屬正確答案"}
 {"id": "rb08", "query": "血尿要做哪些檢查", "acceptable": ["hematuria-01"], "note": "純臨床問題，不應被健保語料干擾"}
 {"id": "rb09", "query": "經尿道攝護腺刮除術健保支付點數", "acceptable": ["nhi-proc-79413B", "nhi-proc-79414B", "nhi-proc-79415B", "nhi-proc-78215B", "nhi-proc-79001B"], "note": "直接問點數，應命中診療項目"}
-{"id": "rb10", "query": "PSA 篩檢要注意什麼", "acceptable": ["psa-01"], "note": "純臨床問題"}
+{"id": "rb10", "query": "PSA 篩檢要注意什麼", "acceptable": ["psa-01", "eau-pca-09", "eau-pca-10", "eau-pca-11", "eau-pca-12", "eau-pca-14", "eau-pca-15", "eau-pca-16"], "note": "純臨床問題。EAU 語料若已自建，早期偵測與 PSA 相關章節同屬正確答案"}

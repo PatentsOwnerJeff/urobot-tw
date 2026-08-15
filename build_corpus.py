@@ -46,6 +46,31 @@ NOISE_PATTERNS = [
 # 章節標題：「3.4.2 Diagnostic evaluation」這類編號標題
 HEADING = re.compile(r"^\s*(\d+(?:\.\d+){0,3})\s+([A-Z][^\n]{2,90})\s*$")
 
+# 參考文獻起始標題。指引 PDF 的書目通常佔全文三分之一，而且緊接在最後一個
+# 內容標題之後、自己不帶編號，所以會被整包歸到前一節底下。實測 EAU Male LUTS
+# 2026：1081 段裡有 346 段（32%）是書目，全被錯標成「6.3 Surgical treatment」。
+# 這些段落含大量作者名、期刊名與年份，進了 BM25 就會被當成指引段落檢索出來。
+REFERENCES_HEADING = re.compile(
+    r"^\s*(?:\d+(?:\.\d+)*\.?\s+)?REFERENCES?\s*$", re.I)
+
+# 書目段落特徵（保險用：有些 PDF 的 REFERENCES 標題抽不出來）
+CITATION_HINTS = re.compile(r"pubmed|doi\.org|https?://", re.I)
+
+# 目錄行：帶點狀引導線，或「編號 標題 頁碼」樣式（行尾是裸頁碼）。
+# 關鍵是這個檢查必須排在 HEADING 之前——目錄項本身就長得像章節標題，
+# 先比對 HEADING 的話目錄第一行就會被當成正文開始，後面整段目錄都跟著留下來。
+# 真正的章節標題不會以裸數字結尾，所以「行尾頁碼」是可靠的判別特徵。
+# 編號可能帶字母層級（5.6.4.a），故不能只允許數字與點。
+TOC_LINE = re.compile(
+    r"\.{4,}\s*\d+\s*$"
+    r"|^\s*\d[\d.a-z]*\s+.{3,80}?\s+\d{1,3}\s*$", re.I)
+
+
+def looks_like_citations(text: str) -> bool:
+    """整段幾乎都是書目就丟掉。門檻取兩個以上連結／PubMed 標記，
+    避免誤殺內文中偶爾引用一個網址的正常段落。"""
+    return len(CITATION_HINTS.findall(text)) >= 2
+
 
 def extract_pages(pdf_path):
     try:
@@ -68,22 +93,47 @@ def clean_lines(text):
     return out
 
 
-def split_sections(pages):
-    """依編號標題切章節，回傳 [(章節標題, 內文, 起始頁)]。"""
-    sections, current = [], {"title": "Preamble", "lines": [], "page": 1}
+def split_sections(pages, keep_front_matter=False):
+    """依編號標題切章節，回傳 [(章節標題, 內文, 起始頁)]。
+
+    兩個過濾在這裡做，因為都要靠「行在文件中的位置」才判斷得出來：
+    - 遇到 REFERENCES 標題就整份停止，後面全是書目。
+    - 第一個編號標題之前的內容（封面、作者、目錄）預設丟棄；目錄行的字距
+      會被 PDF 抽成斷字，留著只是噪音。--keep-front-matter 可保留。
+    """
+    sections = []
+    current = {"title": "Preamble", "lines": [], "page": 1}
+    seen_heading = False
+
     for pageno, text in pages:
         for line in clean_lines(text):
+            if REFERENCES_HEADING.match(line):
+                if current["lines"]:
+                    sections.append(current)
+                return _drop_front_matter(sections, seen_heading, keep_front_matter)
+
+            if TOC_LINE.match(line):
+                continue          # 目錄行：必須先於 HEADING 判斷，理由見上方註解
+
             m = HEADING.match(line)
             if m:
                 if current["lines"]:
                     sections.append(current)
+                seen_heading = True
                 current = {"title": f"{m.group(1)} {m.group(2).strip()}",
                            "lines": [], "page": pageno}
             else:
                 current["lines"].append(line)
+
     if current["lines"]:
         sections.append(current)
-    return sections
+    return _drop_front_matter(sections, seen_heading, keep_front_matter)
+
+
+def _drop_front_matter(sections, seen_heading, keep):
+    if keep or not seen_heading:
+        return sections
+    return [s for s in sections if s["title"] != "Preamble"]
 
 
 def to_paragraphs(lines):
@@ -118,7 +168,7 @@ def chunk(paragraphs, min_chars, max_chars):
     return [c for c in chunks if len(c) >= min_chars // 2]
 
 
-def build(path, prefix, source, min_chars, max_chars):
+def build(path, prefix, source, min_chars, max_chars, keep_front_matter=False):
     path = pathlib.Path(path)
     if path.suffix.lower() == ".pdf":
         pages = extract_pages(path)
@@ -126,8 +176,10 @@ def build(path, prefix, source, min_chars, max_chars):
         pages = [(1, path.read_text(encoding="utf-8", errors="replace"))]
 
     docs, n = [], 0
-    for sec in split_sections(pages):
+    for sec in split_sections(pages, keep_front_matter):
         for body in chunk(to_paragraphs(sec["lines"]), min_chars, max_chars):
+            if looks_like_citations(body):
+                continue          # REFERENCES 標題抽不出來時的保險
             n += 1
             docs.append({
                 "id": f"{prefix}-{n:03d}",
@@ -196,6 +248,8 @@ def main():
     ap.add_argument("--min-chars", type=int, default=MIN_CHARS)
     ap.add_argument("--max-chars", type=int, default=MAX_CHARS)
     ap.add_argument("--dry-run", action="store_true", help="只印出前幾段，不寫檔")
+    ap.add_argument("--keep-front-matter", action="store_true",
+                    help="保留第一個編號標題之前的封面／目錄（預設丟棄）")
     ap.add_argument("--translate", action="store_true", help="替既有 jsonl 補繁中摘要")
     ap.add_argument("--overwrite-summary", action="store_true", help="連已有摘要也重做")
     args = ap.parse_args()
@@ -206,7 +260,8 @@ def main():
     if not (args.prefix and args.source):
         ap.error("建置語料需要 --prefix 與 --source")
 
-    docs = build(args.input, args.prefix, args.source, args.min_chars, args.max_chars)
+    docs = build(args.input, args.prefix, args.source, args.min_chars,
+                 args.max_chars, args.keep_front_matter)
     if not docs:
         raise SystemExit("沒有切出任何段落。請確認 PDF 可擷取文字（掃描檔需先 OCR），"
                          "或改用 --min-chars 調整門檻。")

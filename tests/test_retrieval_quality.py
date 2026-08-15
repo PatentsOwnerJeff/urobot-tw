@@ -22,13 +22,28 @@ sys.path.insert(0, str(BASE))
 
 BENCHMARK = BASE / "benchmarks" / "retrieval.jsonl"
 
-MIN_TOP1 = 7          # 10 題中至少 7 題的第一名要是可接受答案
-MIN_TOP3 = 9          # 至少 9 題的可接受答案要出現在前三名
+MIN_TOP1_RATIO = 0.7  # 至少 7 成題目的第一名要是可接受答案
+MIN_TOP3_RATIO = 0.9  # 至少 9 成題目的可接受答案要出現在前三名
 
 
 @pytest.fixture(scope="module")
 def cases():
-    return [json.loads(l) for l in BENCHMARK.read_text(encoding="utf-8").splitlines() if l.strip()]
+    """只評測系統宣稱有涵蓋的主題。
+
+    scope.json 列為缺口的主題（例如泌尿道感染、血尿）系統一律拒答，
+    對拒答的題目量測排序品質沒有意義，只會量到 BM25 硬湊出來的東西——
+    rb06 原本的「正解」eau-stone-40 是取石前抗生素預防，對單純性泌尿道感染
+    根本是錯的答案，這種題目留在題庫裡會把錯誤當成基準守住。
+    """
+    from retrieve import scope_of
+
+    raw = [json.loads(l) for l in BENCHMARK.read_text(encoding="utf-8").splitlines() if l.strip()]
+    return [c for c in raw if scope_of(c["query"])["verdict"] != "gap"]
+
+
+def _threshold(n, ratio):
+    import math
+    return math.ceil(n * ratio)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -73,8 +88,9 @@ def test_top1_accuracy(cases):
     hits = sum(r["top1"] for r in res)
     misses = [f"{r['query']} → {r['top'][0] if r['top'] else '（無結果）'}"
               for r in res if not r["top1"]]
-    assert hits >= MIN_TOP1, (
-        f"Top-1 命中 {hits}/{len(res)}，低於門檻 {MIN_TOP1}。未命中：\n  "
+    need = _threshold(len(res), MIN_TOP1_RATIO)
+    assert hits >= need, (
+        f"Top-1 命中 {hits}/{len(res)}，低於門檻 {need}。未命中：\n  "
         + "\n  ".join(misses)
     )
 
@@ -84,8 +100,9 @@ def test_top3_recall(cases):
     hits = sum(1 for r in res if r["rank"] and r["rank"] <= 3)
     misses = [f"{r['query']} → 前三名 {r['top']}" for r in res
               if not (r["rank"] and r["rank"] <= 3)]
-    assert hits >= MIN_TOP3, (
-        f"前三名命中 {hits}/{len(res)}，低於門檻 {MIN_TOP3}。未命中：\n  "
+    need = _threshold(len(res), MIN_TOP3_RATIO)
+    assert hits >= need, (
+        f"前三名命中 {hits}/{len(res)}，低於門檻 {need}。未命中：\n  "
         + "\n  ".join(misses)
     )
 

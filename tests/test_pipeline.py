@@ -66,8 +66,10 @@ def test_search_finds_relevant_paragraph():
 
     hits = search("尿路結石怎麼治療")
     assert hits, "『尿路結石怎麼治療』應該要在示範語料中找到段落"
-    assert any(h["id"].startswith("stone") for h in hits), \
-        f"預期命中 stone-* 段落，實際：{[h['id'] for h in hits]}"
+    # 示範語料是 stone-*，EAU 結石指引若已自建則是 eau-stone-* 且會排在前面，
+    # 兩者都是正確主題。只斷言 repo 附的示範語料會讓 CI 在自建語料後變紅。
+    assert any(h["id"].startswith(("stone", "eau-stone")) for h in hits), \
+        f"預期命中結石相關段落，實際：{[h['id'] for h in hits]}"
 
 
 def test_search_respects_k():
@@ -98,8 +100,22 @@ def test_ask_retrieval_only_mode(monkeypatch):
 
     import answer
 
-    out = answer.ask("血尿要做哪些檢查")
+    # 查詢必須挑 scope.json 宣告有涵蓋的主題。原本用的「血尿要做哪些檢查」已列為
+    # 缺口（只有 1 段示範語料），會走拒答路徑而非純檢索模式。
+    out = answer.ask("攝護腺肥大用藥健保給付條件")
     assert "純檢索模式" in out
+    assert "最終決策由醫師負責" in out, "免責聲明不得在任何路徑下被省略"
+
+
+def test_ask_refuses_topics_outside_scope(monkeypatch):
+    """語料庫沒有的主題必須拒答，且免責聲明照樣要在。"""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("UROBOT_OLLAMA_MODEL", raising=False)
+
+    import answer
+
+    out = answer.ask("腎細胞癌標靶治療第一線")
+    assert "未涵蓋此主題" in out
     assert "最終決策由醫師負責" in out, "免責聲明不得在任何路徑下被省略"
 
 

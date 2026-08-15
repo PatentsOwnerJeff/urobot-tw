@@ -9,7 +9,7 @@ import os
 from flask import Flask, render_template_string, request
 
 from answer import DISCLAIMER, LLMError, ask, backend_label
-from retrieve import IndexNotBuilt
+from retrieve import IndexNotBuilt, _load, scope_of
 
 app = Flask(__name__)
 
@@ -26,6 +26,12 @@ PAGE = """<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
  .err{white-space:pre-wrap;background:#fdf3f3;border-left:4px solid #c04a4a;padding:16px;border-radius:0 8px 8px 0;color:#7a2020}
  .mode{font-size:12px;color:#889;margin-top:8px}
  .warn{font-size:13px;color:#a55;margin-top:24px;line-height:1.6}
+ .scope{background:#fbfcfd;border:1px solid #dde5ec;border-radius:8px;padding:14px 16px;margin-top:24px;font-size:13px;color:#456}
+ .scope h3{margin:0 0 8px;font-size:13px;color:#1F4E79}
+ .scope ul{margin:0;padding-left:20px} .scope li{margin:2px 0}
+ .badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;margin-bottom:8px}
+ .b-gap{background:#fdf0e6;color:#8a4a12} .b-partial{background:#fdf7e0;color:#7a6012}
+ .b-unknown{background:#eef0f2;color:#556}
 </style></head><body>
 <h1>UROBOT<sup>®</sup> TW</h1>
 <div class="sub">台灣泌尿科臨床決策輔助 AI — 回答附指引出處</div>
@@ -34,8 +40,15 @@ PAGE = """<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
  <button>詢問</button>
 </form>
 {% if error %}<div class="err">⚠️ {{error}}</div>{% endif %}
+{% if verdict == 'gap' %}<div class="badge b-gap">語料庫未涵蓋此主題</div>
+{% elif verdict == 'partial' %}<div class="badge b-partial">部分涵蓋</div>
+{% elif verdict == 'unknown' %}<div class="badge b-unknown">未對應到已宣告主題</div>{% endif %}
 {% if a %}<div class="ans">{{a}}</div>{% endif %}
 <div class="mode">運作模式：{{mode}}</div>
+{% if topics %}<div class="scope"><h3>語料庫涵蓋範圍（{{paragraphs}} 段）</h3>
+<ul>{% for t in topics %}<li>{{t}}</li>{% endfor %}</ul>
+<div style="margin-top:8px;color:#778">範圍以 scope.json 明示宣告。宣告之外的主題一律不作答，
+不以字面相近的段落充數——完整缺口清單見 scope.json 的 gaps。</div></div>{% endif %}
 <div class="warn">研發原型・示範語料。輸出僅供臨床參考，不構成醫療建議，{{disclaimer}}<br>
 本系統未經任何主管機關審查或核准，不得作為診斷或治療依據。<br>
 UROBOT<sup>®</sup> 為英普瑞斯股份有限公司之註冊商標（中華民國註冊第 02509814 號）。</div>
@@ -46,8 +59,10 @@ UROBOT<sup>®</sup> 為英普瑞斯股份有限公司之註冊商標（中華民
 def home():
     q = request.form.get("q", "").strip() if request.method == "POST" else ""
     a = error = None
+    verdict = None
     if q:
         try:
+            verdict = scope_of(q)["verdict"]
             a = ask(q)
         except IndexNotBuilt as e:
             error = str(e)
@@ -62,8 +77,15 @@ def home():
     except Exception:
         mode = "未知"
 
+    try:
+        topics = scope_of("")["available"]
+        paragraphs = len(_load()["docs"])
+    except Exception:
+        topics, paragraphs = [], 0
+
     return render_template_string(
-        PAGE, q=q, a=a, error=error, mode=mode, disclaimer=DISCLAIMER)
+        PAGE, q=q, a=a, error=error, mode=mode, disclaimer=DISCLAIMER,
+        verdict=verdict, topics=topics, paragraphs=paragraphs)
 
 
 @app.route("/healthz")

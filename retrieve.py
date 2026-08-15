@@ -14,9 +14,11 @@ import jieba
 BASE = os.path.dirname(os.path.abspath(__file__))
 INDEX_PATH = os.path.join(BASE, "index.pkl")
 GLOSSARY_PATH = os.path.join(BASE, "glossary_zh_en.json")
+SCOPE_PATH = os.path.join(BASE, "scope.json")
 
 _cache = None
 _glossary = None
+_scope = None
 
 
 class IndexNotBuilt(FileNotFoundError):
@@ -71,6 +73,68 @@ def expand(query: str):
                     seen.add(low)
                     terms.append(term)
     return terms
+
+
+def _load_scope():
+    global _scope
+    if _scope is None:
+        try:
+            with open(SCOPE_PATH, encoding="utf-8") as f:
+                _scope = json.load(f)
+        except (OSError, ValueError):
+            _scope = {"covered": [], "gaps": []}
+    return _scope
+
+
+def _topic_available(topic):
+    """該主題所依賴的段落是否真的在索引裡。
+
+    EAU 語料不隨 repo 散布，使用者沒自建時對應主題必須自動降級為未涵蓋，
+    否則系統會宣稱涵蓋攝護腺癌，實際上只拿 demo 語料的一段來回答。
+    """
+    ids = [d["id"] for d in _load()["docs"]]
+    return all(any(i.startswith(p + "-") for i in ids)
+               for p in topic.get("requires", []))
+
+
+def _matches(query: str, topic) -> bool:
+    q = query.lower()
+    return any(kw.lower() in q for kw in topic.get("keywords", []))
+
+
+def scope_of(query: str):
+    """查詢主題是否在語料庫的宣告涵蓋範圍內。
+
+    在檢索之前先問「我們到底有沒有這個主題的資料」。這一層是刻意用人工維護的
+    明示宣告，而不是任何以分數為基礎的信心指標——原因見 scope.json 的說明。
+
+    verdict:
+      covered  已涵蓋，可正常呈現
+      partial  部分涵蓋（例如有健保給付條文但沒有臨床指引），須標明缺哪一塊
+      gap      已知未涵蓋，不應呈現硬湊出來的段落
+      unknown  未對應到任何已宣告主題，結果須標為不確定
+    """
+    scope = _load_scope()
+    gaps = [t for t in scope.get("gaps", []) if _matches(query, t)]
+    covered = [t for t in scope.get("covered", [])
+               if _matches(query, t) and _topic_available(t)]
+
+    if gaps and covered:
+        verdict = "partial"
+    elif gaps:
+        verdict = "gap"
+    elif covered:
+        verdict = "covered"
+    else:
+        verdict = "unknown"
+
+    return {
+        "verdict": verdict,
+        "gaps": [{"topic": t["topic"], "note": t.get("note", ""),
+                  "fix": t.get("fix")} for t in gaps],
+        "covered": [{"topic": t["topic"], "detail": t.get("detail", "")} for t in covered],
+        "available": [t["topic"] for t in scope.get("covered", []) if _topic_available(t)],
+    }
 
 
 def tokenize(text: str):
