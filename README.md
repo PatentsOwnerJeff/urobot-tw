@@ -176,8 +176,11 @@ python -m pytest -q
 |---|---|
 | [@PatentsOwnerJeff](https://github.com/PatentsOwnerJeff) | 專案發起、架構設計、商標與授權 |
 | [@wenhuikuo](https://github.com/wenhuikuo) | 臨床內容審閱、語料整理、評測題庫 |
+| [@Abigail1984](https://github.com/Abigail1984) | 臨床合作洽談、醫院與泌尿科醫師社群聯繫 |
 
 歡迎泌尿科臨床、NLP、資料工程領域的夥伴參與，請由 Issue 或 PR 開始。
+
+**醫療院所合作洽詢**：歡迎透過 [Issue](https://github.com/PatentsOwnerJeff/urobot-tw/issues) 或 patentowneroffice@gmail.com 與我們聯繫。系統可於院內地端部署，搭配本地模型時提問不離開院內網路。
 
 ## 致謝
 
