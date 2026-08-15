@@ -5,17 +5,28 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
+**繁體中文** ｜ [English](README.en.md)
+
 > UROBOT® 為英普瑞斯股份有限公司之註冊商標（中華民國註冊第 02509814 號，第 10、44 類）。
 
-**Open-source Taiwanese urology clinical decision-support AI.** RAG 架構：檢索泌尿科指引 → 大模型作答 → 逐點標註出處。與德國 DKFZ [UroBot](https://github.com/DBO-DKFZ/UroBot)（EAU 指引＋GPT-4o，專科考題 88.4%）同架構，差異化：繁體中文、台灣臨床實務、健保給付規範、**不綁定任何一家模型供應商**。
+**Open-source Taiwanese urology clinical decision-support AI.** RAG 架構：檢索泌尿科指引 → 大模型作答 → 逐點標註出處。差異化：繁體中文、台灣臨床實務、健保給付規範、**不綁定任何一家模型供應商**。
+
+> **先講清楚兩件事，免得你白跑一趟：**
+>
+> 1. **開箱只答得了健保給付問題。** 學會指引受著作權保護不能隨 repo 散布，臨床指引語料要你自行建置。詳見[你 clone 下來實際會拿到什麼](#你-clone-下來實際會拿到什麼)。
+> 2. **本專案目前沒有任何可對外宣稱的準確率。** 下方提到的 88.4% 是德國 DKFZ [UroBot](https://github.com/DBO-DKFZ/UroBot) 在歐洲專科考題的成績，那是**另一個獨立專案**，不是這裡的數字。本專案尚未以泌尿專科甄審題庫做過正式評測。
+
+架構上對標 DKFZ UroBot（EAU 指引＋GPT-4o，專科考題 88.4%），但語料、語言與給付規範完全不同。
 
 ## 特色
 
-- **可插拔模型層**：Claude API（預設推薦）／ Ollama 本地開源模型（免費、資料不出門）／純檢索模式（免任何 key）
-- **中英跨語檢索**：英文指引每段附繁中摘要一起建索引，再加上[中英醫學詞對照表](glossary_zh_en.json)做查詢擴展，中文提問可命中英文指引
-- **台灣健保給付規範**：[`build_nhi_corpus.py`](build_nhi_corpus.py) 直接從政府開放資料建置給付條件語料 —— 這是國外系統沒有的
-- **內建評測系統**：`eval.py` 對標 UroBot 的考題正確率（RoCA）評測法，結果可存檔比較
+標示 🔧 的功能需要你自行建置語料或設定模型後才會生效：
+
 - **不知道就說不知道**：涵蓋範圍以 [`scope.json`](scope.json) 明示宣告，宣告之外的主題一律拒答，並告訴你要補哪一本指引、指令怎麼下——不拿字面沾邊的段落硬湊成答案
+- **台灣健保給付規範**：478 段隨 repo 附上，取自政府開放資料可合法散布。[`build_nhi_corpus.py`](build_nhi_corpus.py) 可自行重建與更新 —— 這是國外系統沒有的
+- **可插拔模型層** 🔧：Claude API（預設推薦）／ Ollama 本地開源模型（免費、資料不出門）／純檢索模式（免任何 key，但只回傳段落不作答）
+- **中英跨語檢索** 🔧：英文指引每段附繁中摘要一起建索引，再加上[中英醫學詞對照表](glossary_zh_en.json)做查詢擴展，中文提問可命中英文指引（需先建置英文指引語料）
+- **內建評測系統** 🔧：`eval.py` 對標 UroBot 的考題正確率（RoCA）評測法，結果可存檔比較（需接模型）
 - **語料即插即用**：新增 jsonl 檔重跑 `ingest.py` 即擴充知識庫（記得同步更新 `scope.json`）
 
 ## 快速開始
