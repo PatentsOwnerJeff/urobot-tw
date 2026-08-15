@@ -46,9 +46,16 @@ Clone 下來預設只有 10 段示範語料。要讓系統真正好用，請自�
 
 ```bash
 python build_nhi_corpus.py --inspect     # 先看資料長什麼樣、欄位對不對得上
-python build_nhi_corpus.py               # 產生 corpus/nhi_*_urology.jsonl
+python build_nhi_corpus.py               # 診療項目與藥品品項
+pip install pypdf && python build_nhi_rules.py   # 藥品給付規定條文（最有價值）
 python ingest.py
 ```
+
+**`build_nhi_rules.py` 是這批工具裡最值得跑的一支。** 用藥品項檔只有章節編號（如 5.2.2.1），沒有條文；而條文才是臨床決策要的東西：
+
+> 5.2.2.1 Finasteride；dutasteride：**限前列腺增生且有阻塞症狀**…**前列腺大於 30mL 或最大尿流速（Qmax）小於 15 mL/sec** 之病人方可使用。
+
+泌尿科現行品項共用到 18 個章節，涵蓋 OAB（1.6.3）、ED（2.8.2）、BPH（5.2.2.1）、GnRH（5.5.1）、抗雄性素（9.39–9.94）、尿路抗生素（10.1、10.8.2）。
 
 資料來自[政府資料開放平臺](https://data.gov.tw/dataset/9405)，授權為政府資料開放授權條款第 1 版，可再散布與衍生。出處與授權標示見 [NOTICE.md](NOTICE.md)。
 
@@ -96,12 +103,13 @@ python eval.py --compare results/*.json          # 比較不同模型／設定�
 
 ## 語料庫
 
-| 檔案 | 內容 | 取得方式 | 可否公開散布 |
+| 檔案 | 內容 | 段數 | 可否公開散布 |
 |---|---|---|---|
-| `demo_guidelines.jsonl` | 繁中示範語料（10 段） | 已隨 repo 附上 | ✅ |
-| `nhi_procedures_urology.jsonl` | 健保診療項目給付 | 執行 `build_nhi_corpus.py` | ✅ 政府開放資料 |
-| `nhi_drugs_urology.jsonl` | 健保泌尿科用藥給付 | 執行 `build_nhi_corpus.py` | ✅ 政府開放資料 |
-| `eau_*.jsonl` | EAU 指引 | 執行 `build_corpus.py` | ❌ 著作權屬 EAU |
+| `demo_guidelines.jsonl` | 繁中示範語料 | 10 | ✅ 已隨 repo 附上 |
+| `nhi_procedures_urology.jsonl` | 健保診療項目給付 | 391 | ✅ 政府開放資料 |
+| `nhi_drugs_urology.jsonl` | 健保用藥（按成分聚合） | 69 | ✅ 政府開放資料 |
+| `nhi_drug_rules.jsonl` | **藥品給付規定條文** | 18 | ✅ 健保署公告 |
+| `eau_*.jsonl` | EAU 指引 | 166 | ❌ 著作權屬 EAU，需自行建置 |
 
 ⚠️ **著作權注意**：指引語料著作權屬原機構（EAU/TUA 等）。公開 repo 預設排除 `eau_*.jsonl`，使用者需在本機自行建置，或待取得機構授權後散布。程式碼本身為 Apache-2.0，第三方資料來源與授權標示見 [NOTICE.md](NOTICE.md)。
 
@@ -111,7 +119,8 @@ python eval.py --compare results/*.json          # 比較不同模型／設定�
 
 ```
 corpus/*.jsonl ─┬─ build_corpus.py      （學會指引 PDF → jsonl，使用者自行建置）
-                └─ build_nhi_corpus.py  （健保開放資料 → jsonl）
+                ├─ build_nhi_corpus.py  （健保開放資料 → 診療項目與藥品）
+                └─ build_nhi_rules.py   （健保署給付規定 PDF → 條文）
       ↓
 ingest.py（jieba + BM25）→ index.pkl
       ↓
@@ -138,7 +147,9 @@ python -m pytest -q
 
 - [x] 中英醫學詞對照表查詢擴展
 - [x] 健保給付規範語料管線
+- [x] 健保藥品給付規定條文收錄
 - [x] CI 與基礎測試
+- [ ] **排序調校** —— BM25 對長文有長度懲罰，較長的給付規定條文有時會輸給極短的診療項目條目
 - [ ] 向量檢索（bge-m3）混合排序
 - [ ] TUA 指引授權與收錄
 - [ ] 台灣專科甄審題庫完整評測，發表對標論文
