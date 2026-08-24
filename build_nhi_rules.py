@@ -209,6 +209,11 @@ def main():
             time.sleep(0.5)          # 對政府網站客氣一點
         if failed:
             print(f"\n⚠️ 下列章節取得失敗，本次未收錄條文：{'、'.join(failed)}")
+            # 少數章節失敗時段數只掉一兩段，過得了 corpus_diff 的段數門檻，
+            # 於是排程會開出一個「安靜少了幾條給付規定」的 PR。互動使用可以自行判斷
+            # 要不要接受部分結果，排程不行——所以這裡直接讓離開碼非零。
+            print("   部分結果不予採用。重跑一次，或用 --from-file 指定手動下載的檔案。")
+            return 1
 
     docs = to_docs(chapters, summary_only=args.summary_only)
     docs = [d for d in docs if args.summary_only or "條文內容：" in d["text"]]

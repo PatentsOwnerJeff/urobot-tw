@@ -440,6 +440,12 @@ def main():
     if args.from_file and not args.only:
         ap.error("--from-file 必須搭配 --only 指定是哪一份資料集")
 
+    # 失敗必須反映在離開碼上。互動使用時看得到 ❌，但排程（nhi-refresh.yml）看不到——
+    # 若這裡回 0，抓取全失敗會被當成「資料沒變動」，於是月復一月安靜地不更新，
+    # 而沒有任何人會發現語料早就過期了。
+    failed = []
+    pending = []          # [(輸出路徑, docs)]，全部成功才落地
+
     for kind in kinds:
         meta = DATASETS[kind]
         print(f"\n{'=' * 60}\n{meta['name']}（{meta['page']}）\n{'=' * 60}")
@@ -449,6 +455,7 @@ def main():
             print(f"❌ 取得失敗：{type(e).__name__}: {e}")
             print(f"   可改為手動下載後執行：\n"
                   f"   python build_nhi_corpus.py --only {kind} --from-file 下載的檔案")
+            failed.append(kind)
             continue
 
         if args.inspect:
@@ -475,17 +482,31 @@ def main():
 
         if not docs:
             print("⚠️ 沒有篩出任何資料，欄位可能對不上。請執行 --inspect 檢查。")
+            failed.append(kind)
             continue
 
+        # 先擱著不寫。有任何一份失敗就整批不落地——半套結果只會少掉幾段，
+        # 過得了 corpus_diff.py 的段數門檻，於是排程開出一個「安靜少了一整份資料集」的 PR。
         out = pathlib.Path(args.outdir) / f"nhi_{kind}_urology.jsonl"
+        pending.append((out, docs))
+        print(f"樣本：{docs[0]['text'][:160]}…")
+
+    if failed:
+        print(f"\n❌ 下列資料集未能建置：{'、'.join(failed)}")
+        if pending:
+            print(f"   部分結果不予採用，{len(pending)} 份成功的資料集也不會寫入。")
+            print(f"   要單獨重建成功的那份，請用 --only 指定。")
+        return 1
+
+    for out, docs in pending:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text("\n".join(json.dumps(d, ensure_ascii=False) for d in docs) + "\n",
                        encoding="utf-8")
-        print(f"已寫入：{out}")
-        print(f"樣本：{docs[0]['text'][:160]}…")
+        print(f"已寫入：{out}（{len(docs)} 段）")
 
     if not args.inspect:
         print("\n下一步：python ingest.py   # 重建索引")
+    return 0
 
 
 if __name__ == "__main__":

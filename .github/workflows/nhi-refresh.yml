@@ -1,0 +1,159 @@
+name: 健保語料自動更新
+
+# 健保署的支付標準與用藥品項檔會改版。這個排程每月重建一次語料，
+# 有變動就開 PR 讓人審——不自動合併：給付規定的變動有臨床意義，必須有人看過。
+#
+# 設計上的三道關卡（缺一不可）：
+#   1. 健全性檢查：健保署改欄位名稱時，build 腳本不會拋例外，只會安靜地產出殘缺語料。
+#      沒有這關，自動更新會變成自動污染，而且沒人會發現。
+#   2. 檢索品質測試：語料換掉之後排序可能退化。退化不會報錯，只會讓答案安靜地變爛。
+#   3. 人工審查：PR 不自動合併。
+#
+# 註：用 GITHUB_TOKEN 開的 PR 不會觸發 CI workflow（GitHub 防遞迴的設計），
+#     所以測試在這個 workflow 內就跑完，不依賴 PR 上的 CI。
+
+on:
+  schedule:
+    # 每月 1 日 03:00 UTC（台北時間 11:00）
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+    inputs:
+      min_ratio:
+        description: "段數下限（相對舊版）。健保署真的大幅刪減項目時才需要調低"
+        default: "0.8"
+        required: false
+      max_ratio:
+        description: "段數上限（相對舊版）。健保署真的大幅擴充項目時才需要調高"
+        default: "1.5"
+        required: false
+      min_overlap:
+        description: "id 至少要對得上的比例。項目代碼真的整批換過時才需要調低"
+        default: "0.5"
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# 手動觸發撞上排程時，兩個 job 會搶同一個分支與 PR
+concurrency:
+  group: nhi-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 安裝相依套件
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: 保留現行語料供比對
+        run: |
+          mkdir -p .nhi-refresh/before
+          cp corpus/*.jsonl .nhi-refresh/before/
+
+      - name: 重建健保語料
+        run: |
+          python build_nhi_corpus.py
+          python build_nhi_rules.py
+
+      - name: 健全性檢查與變動摘要
+        id: diff
+        # 參數走 env 而不是直接內插進 run:——workflow_dispatch 的輸入是自由文字，
+        # 直接內插等於把 shell 交給任何有 write 權限的人，而這個 job 拿著可寫 token。
+        env:
+          MIN_RATIO: ${{ inputs.min_ratio || '0.8' }}
+          MAX_RATIO: ${{ inputs.max_ratio || '1.5' }}
+          MIN_OVERLAP: ${{ inputs.min_overlap || '0.5' }}
+        run: |
+          set +e
+          python corpus_diff.py \
+            --old .nhi-refresh/before --new corpus --check \
+            --min-ratio "$MIN_RATIO" \
+            --max-ratio "$MAX_RATIO" \
+            --min-overlap "$MIN_OVERLAP" \
+            --out .nhi-refresh/diff.md \
+            --github-output "$GITHUB_OUTPUT" \
+            2> .nhi-refresh/diff.err
+          status=$?
+          set -e
+          cat .nhi-refresh/diff.err
+          # 2 = 健全性檢查未通過；其他非零 = 腳本自己出錯（JSON 壞掉、參數錯等）
+          if [ $status -eq 2 ]; then
+            echo "::error::語料健全性檢查未通過，不開 PR。多半是健保署改了資料格式，請手動跑 build_nhi_corpus.py --inspect 對照欄位；確認變動屬實後可用 workflow_dispatch 調整門檻重跑。"
+            exit 1
+          elif [ $status -ne 0 ]; then
+            echo "::error::corpus_diff.py 執行失敗（exit $status），詳見上方輸出。"
+            exit 1
+          fi
+
+      - name: 無變動，結束
+        if: steps.diff.outputs.changed == 'false'
+        run: echo "健保署資料與現行語料一致，不需要開 PR。"
+
+      - name: 重建索引
+        if: steps.diff.outputs.changed == 'true'
+        run: python ingest.py
+
+      - name: 涵蓋範圍與檢索品質測試
+        if: steps.diff.outputs.changed == 'true'
+        run: python -m pytest -q
+
+      - name: 開 PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch="corpus/nhi-refresh-$(date -u +%Y%m%d)"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$branch"
+          # 只提交排程負責的檔案。corpus/*.jsonl 會掃到 gitignore 的 eau_*.jsonl，
+          # 那會讓 git add 直接以 exit 1 收場。
+          git add corpus/nhi_*.jsonl
+          git commit -m "chore(corpus): 更新健保給付語料至 $(date -u +%Y-%m-%d)"
+
+          # 同一天重跑（job 重試、手動觸發）時分支已存在於遠端。checkout@v4 只抓了
+          # 當前 ref，沒有這個分支的 remote-tracking ref，所以 --force-with-lease
+          # 會以 "stale info" 失敗。分支由 bot 獨佔，直接 --force。
+          git push --force origin "$branch"
+
+          # 標籤不存在時 gh pr create 會整個失敗，先確保它在（已存在則忽略錯誤）
+          gh label create corpus --color 0E8A16 --description "語料更新" 2>/dev/null || true
+
+          # 用 --state open 過濾：同名分支的舊 PR 若已被合併或關閉，
+          # gh pr view 仍會成功，於是這次的更新會被 edit 到一個關掉的 PR 上。
+          existing=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --body-file .nhi-refresh/diff.md
+            echo "已更新既有 PR #$existing。"
+          else
+            gh pr create \
+              --base main --head "$branch" \
+              --title "chore(corpus): 健保給付語料更新（$(date -u +%Y-%m)）" \
+              --body-file .nhi-refresh/diff.md \
+              --label corpus
+          fi
+
+      - name: 檢查失敗時保留產物供查
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nhi-refresh-debug
+          path: |
+            corpus/*.jsonl
+            .nhi-refresh/diff.md
+            .nhi-refresh/diff.err
+          if-no-files-found: warn

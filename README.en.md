@@ -162,6 +162,50 @@ questions, enforced in CI at a 70% floor.
   regulation version, but **the NHIA's latest published rules always govern**.
 - Scope is maintained by hand and must be updated when corpora are added.
 
+## Keeping the NHI corpus current
+
+[`.github/workflows/nhi-refresh.yml`](.github/workflows/nhi-refresh.yml) rebuilds the NHI
+corpora monthly and opens a PR when anything changed. PRs are **never auto-merged** —
+reimbursement changes carry clinical meaning and need a human reviewer. The PR body is a
+summary produced by `corpus_diff.py` (payment-point changes, additions, removals), not a
+raw JSONL diff.
+
+Three gates must pass before a PR is opened:
+
+| Gate | Catches |
+|---|---|
+| Build script exit code | Failed downloads or missing chapters. **Partial results are never written** — one missing dataset would not trip the count threshold below |
+| `corpus_diff.py --check` | Count collapse *or explosion*, mass id mismatch, a field vanishing from every record, shrinking paragraph length |
+| `pytest` incl. retrieval quality | Ranking regressions introduced by the new corpus |
+
+The second gate is the point of the whole design. When the NHIA renames a column, the
+build scripts **do not raise** — unreadable fields become empty strings and unmatched
+filters silently drop entire batches. Without this gate, scheduled updates would become
+scheduled corruption, unnoticed, because CI's retrieval tests only run on the demo corpus.
+
+Failure modes it actually catches (each has a test in `tests/test_corpus_diff.py`):
+
+| Symptom | Why it's hard to catch | Threshold |
+|---|---|---|
+| Urology filter breaks, only a handful of rows survive | — | `--min-ratio` |
+| **Expiry-date column renamed → every delisted item counted as current** | Data grows; every old id still present; nothing blank | `--max-ratio` |
+| Procedure code scheme changes | Looks like bulk additions plus bulk removals | `--min-overlap` |
+| **Payment-point column renamed** | Same count, same ids, paragraphs still 50+ chars | Field coverage |
+| Chinese item name reads as empty string | As above, paragraphs merely shorter | Median length |
+
+The two in bold are where this gate earns its keep — no other threshold sees them.
+
+The schedule only touches `nhi_*.jsonl`. EAU guideline corpora are copyrighted, are not
+redistributed with the repo, and are explicitly excluded in `corpus_diff.MANAGED`.
+
+If the NHIA genuinely reorganises its data, the thresholds will block the update. Trigger
+the workflow manually via `workflow_dispatch` and adjust `min_ratio` / `max_ratio` /
+`min_overlap`. For removals of more than half the corpus you must relax `min_ratio` **and**
+`min_overlap` — loosening the first alone still trips the id-overlap check.
+
+GitHub disables `schedule` triggers after 60 days without repository activity. On a quiet
+month, check that the job still ran.
+
 ## Disclaimer
 
 Research prototype. Output is for clinical reference and education only, does not

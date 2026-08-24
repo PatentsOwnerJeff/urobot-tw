@@ -23,3 +23,6 @@ reference-UroBot/
 # 給付規定 PDF 快取（build_nhi_rules.py 下載，可隨時重抓）
 .nhi_rules_pdf/
 .cache/
+
+# 自動更新排程的暫存比對檔（.github/workflows/nhi-refresh.yml）
+.nhi-refresh/
