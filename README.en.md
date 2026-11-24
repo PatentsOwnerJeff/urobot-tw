@@ -1,4 +1,4 @@
-# UROBOT® TW — Open-source Taiwanese urology clinical decision-support AI
+# UROBOT® TW — Open-source question-answering tool for urology guidelines and NHI reimbursement rules (Taiwan)
 
 [![CI](https://github.com/PatentsOwnerJeff/urobot-tw/actions/workflows/ci.yml/badge.svg)](https://github.com/PatentsOwnerJeff/urobot-tw/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -11,7 +11,7 @@
 > **not** covered by the Apache-2.0 licence.
 > "UroBot" (DKFZ) is a separate, independent academic project.
 
-Retrieval-augmented clinical decision support for urology, localised for Taiwan:
+Retrieval-augmented search and question answering over urology guidelines, localised for Taiwan:
 Traditional Chinese, Taiwanese clinical practice, and **National Health Insurance (NHI)
 reimbursement rules** — the last of which no international system covers. Answers cite
 the exact guideline paragraph they came from. No vendor lock-in: Claude API, local

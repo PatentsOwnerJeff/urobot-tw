@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "UROBOT TW: Open-source Taiwanese urology clinical decision-support AI"
+title: "UROBOT TW: Open-source question-answering tool for urology guidelines and NHI reimbursement rules (Taiwan)"
 message: "If you use this software, please cite it as below."
 type: software
 authors:
@@ -13,7 +13,7 @@ repository-code: "https://github.com/PatentsOwnerJeff/urobot-tw"
 url: "https://patentsownerjeff.github.io/urobot-tw/"
 abstract: >-
   UROBOT TW is an open-source retrieval-augmented generation (RAG) system for
-  urology clinical decision support in Taiwan. It retrieves guideline passages,
+  searching urology guidelines in Taiwan. It retrieves guideline passages,
   generates answers with a pluggable large language model, and cites the source
   of every point. Unlike existing systems, it targets Traditional Chinese,
   Taiwanese clinical practice and National Health Insurance reimbursement rules,
@@ -21,7 +21,7 @@ abstract: >-
   harness benchmarked against the Rate of Correct Answers (RoCA) methodology.
 keywords:
   - urology
-  - clinical decision support
+  - guideline retrieval
   - retrieval-augmented generation
   - large language models
   - Traditional Chinese
