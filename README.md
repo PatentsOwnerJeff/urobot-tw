@@ -1,4 +1,4 @@
-# UROBOT® TW — 開源台灣泌尿科臨床決策輔助 AI
+# UROBOT® TW — 開源台灣泌尿科臨床指引與健保給付檢索問答工具
 
 [![CI](https://github.com/PatentsOwnerJeff/urobot-tw/actions/workflows/ci.yml/badge.svg)](https://github.com/PatentsOwnerJeff/urobot-tw/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -9,7 +9,7 @@
 
 > UROBOT® 為英普瑞斯股份有限公司之註冊商標（中華民國註冊第 02509814 號，第 10、44 類）。
 
-**Open-source Taiwanese urology clinical decision-support AI.** RAG 架構：檢索泌尿科指引 → 大模型作答 → 逐點標註出處。差異化：繁體中文、台灣臨床實務、健保給付規範、**不綁定任何一家模型供應商**。
+**Open-source question-answering tool for urology guidelines and NHI reimbursement rules (Taiwan).** RAG 架構：檢索泌尿科指引 → 大模型作答 → 逐點標註出處。差異化：繁體中文、台灣臨床實務、健保給付規範、**不綁定任何一家模型供應商**。
 
 > **先講清楚兩件事，免得你白跑一趟：**
 >
